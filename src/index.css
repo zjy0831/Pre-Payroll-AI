@@ -1,0 +1,78 @@
+:root {
+  --background: #f5f7fc;
+  --foreground: #16213d;
+  --card: #ffffff;
+  --card-foreground: #16213d;
+  --popover: #ffffff;
+  --popover-foreground: #16213d;
+  --primary: #3650e0;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2ff;
+  --secondary-foreground: #243574;
+  --muted: #eef2f8;
+  --muted-foreground: #68758f;
+  --accent: #f8f2de;
+  --accent-foreground: #5a4a12;
+  --accent-brand: #fcd36b;
+  --border: #dbe3f3;
+  --input: #dbe3f3;
+  --ring: #3650e0;
+  --surface-base: var(--background);
+  --surface-card: var(--card);
+  --line-soft: rgba(54, 80, 224, 0.12);
+  --text-strong: #17233f;
+  --text-main: #42516d;
+  --text-muted: #7b88a2;
+  --brand-blue: var(--primary);
+  --brand-gold: var(--accent-brand);
+  --risk-high: #d14343;
+  --risk-medium: #c89320;
+  --risk-low: #24936c;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  --font-display: 'Avenir Next', 'Trebuchet MS', sans-serif;
+  color: var(--text-main);
+  background: var(--surface-base);
+  font: 16px/1.5 var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(54, 80, 224, 0.06), transparent 28%),
+    linear-gradient(180deg, #f8faff, #f5f7fc 42%, #f3f6fb);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}

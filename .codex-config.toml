@@ -1,0 +1,8 @@
+personality = "pragmatic"
+model = "gpt-5.4"
+model_reasoning_effort = "low"
+
+[mcp_servers.jira]
+command = "npx"
+args = ["-y", "mcp-jira-stdio"]
+env = { JIRA_BASE_URL = "https://biposervice.atlassian.net", JIRA_EMAIL = "jelena.zhang@biposervice.com", JIRA_API_TOKEN = "ATATT3xFfGF0CY2SnN6enXI39RN2Md_wz_zs8s-mI1pj4RXKSl6iNXAEqZTIyyE7S3P13Ie2qdBBCmXjQKbRAvFtOO8r3Af5sFv-JAcJPjYLaOHRyqM3QoG-n2JB8XoB6bj7CkkwUrVmIuzne3OfEJDH6grRUDrDZ1Wht1Ahsd-N19zMFyDW0Rc=0E408CD0", ENABLED_TOOLS = "jira_search,jira_get_issue" }
