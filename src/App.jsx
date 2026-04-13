@@ -19,6 +19,18 @@ function getActionTone(action, index, actions) {
   return 'is-ghost'
 }
 
+function getAgreementBuilderActionTone(action, agreementGenerated) {
+  if (action === 'Generate Agreement') {
+    return agreementGenerated ? 'is-secondary' : 'is-primary'
+  }
+
+  if (action === 'Send for Review') {
+    return agreementGenerated ? 'is-primary' : 'is-ghost'
+  }
+
+  return 'is-ghost'
+}
+
 function normalizeRow(row) {
   return Array.isArray(row) ? { cells: row } : row
 }
@@ -2092,17 +2104,6 @@ const prePayrollPages = [
         },
       ],
     },
-    currentView: {
-      title: 'Post-Payroll Risk Data',
-      caption: '按 Department 聚合 post-payroll 异常，先看哪些部门承载了最高暴露与最多待审项目。',
-      columns: ['Department', 'High Risk', 'Medium Risk', 'Financial Impact', 'Anomaly Type', 'Risk Level', 'Decision State'],
-      rows: [
-        { rowId: 'post-dept-finops', cells: ['Finance Ops', '2', '3', 'SGD 21,340', 'Net pay variance + missing deduction', 'High', 'Investigate'], tone: 'critical', linkedIssueIds: ['post-net-pay-variance', 'post-missing-deduction'], filterMeta: { riskLevel: 'high', department: 'Finance Ops', anomalyType: 'Net Pay Variance' } },
-        { rowId: 'post-dept-commercial', cells: ['Commercial', '1', '4', 'SGD 11,880', 'Unexpected allowance / peer outlier', 'Medium', 'Override review'], tone: 'warning', linkedIssueIds: ['post-unexpected-allowance', 'post-peer-outlier'], filterMeta: { riskLevel: 'medium', department: 'Commercial', anomalyType: 'Unexpected Allowance' } },
-        { rowId: 'post-dept-peopleops', cells: ['People Ops', '1', '3', 'SGD 5,200', 'New pay component + tax variance', 'Medium', 'Evidence pending'], tone: 'warning', linkedIssueIds: ['post-new-pay-component', 'post-tax-variance'], filterMeta: { riskLevel: 'medium', department: 'People Ops', anomalyType: 'New Pay Component' } },
-        { rowId: 'post-dept-shared', cells: ['Shared Services', '0', '2', 'SGD 2,180', 'Deduction change threshold breach', 'Low', 'Accept'], tone: 'normal', linkedIssueIds: ['post-deduction-change'], filterMeta: { riskLevel: 'low', department: 'Shared Services', anomalyType: 'Deduction Change' } },
-      ],
-    },
     tables: [
       {
         title: 'Anomaly Queue',
@@ -2252,16 +2253,737 @@ const prePayrollPages = [
 ]
 
 const requestPages = []
+const corPages = [
+  {
+    id: 'cor-task-collect-info',
+    phase: 'COR Task Detail',
+    title: 'Contractor Fill in Personal Info.',
+    status: 'In Progress',
+    accent: 'scope',
+    subtitle: 'SD 发起信息收集后，由 contractor 填写个人信息；页面按分组展示进度、缺失项和校验结果。',
+    stats: [
+      ['Assignee', 'Contractor'],
+      ['Due Date', '2026-04-10'],
+      ['Remind Date', '2026-04-09'],
+      ['Task ID', 'COR-T2'],
+    ],
+    taskGoal: '完成个人信息与附件填写，并通过提交前预检后交由 SD 在 1.1.5 节点审核。',
+    taskActions: ['Save Draft', 'Remind Contractor', 'Submit for Review'],
+    formGroups: [
+      {
+        id: 'basic',
+        label: 'Basic Info',
+        fields: [
+          {
+            key: 'name',
+            label: 'Name',
+            value: 'Muller Hans',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '使用证件上的法定姓名，避免昵称或缩写。',
+          },
+          {
+            key: 'nationality',
+            label: 'Nationality',
+            value: 'Germany',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '与证件信息保持一致，后续用于合规和合同模板匹配。',
+          },
+          {
+            key: 'identity-type',
+            label: 'Identity Type',
+            value: 'Australia / Australian Temporary Visa',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '证件类型会影响后续审核规则，请选择最准确类型。',
+          },
+          {
+            key: 'identity-no',
+            label: 'Identity No.',
+            value: '123123123',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '证件号码需与上传附件中的号码一致。',
+          },
+          {
+            key: 'id-attachment',
+            label: 'Identity Card Copy Attachment',
+            value: '测试文件.pdf',
+            required: true,
+            status: 'Uploaded',
+            tone: 'ok',
+            span: 'full',
+            hint: '支持 PDF / JPG / PNG。请确保文件清晰且信息完整可读。',
+          },
+          {
+            key: 'terminate-date',
+            label: 'Terminate Date',
+            value: 'Not provided',
+            required: false,
+            status: 'Optional',
+            tone: 'neutral',
+            hint: '仅在存在终止安排时填写，否则可留空。',
+          },
+        ],
+      },
+      {
+        id: 'contact',
+        label: 'Contact Information',
+        fields: [
+          {
+            key: 'email',
+            label: 'Email Address',
+            value: 'hans.m@protonmail.de',
+            required: false,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '建议使用常用邮箱，用于签署通知和任务提醒。',
+          },
+          {
+            key: 'phone',
+            label: 'Phone Number',
+            value: '+86 18917911000',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '包含国家区号，格式示例：+86 189XXXXXXX。',
+          },
+          {
+            key: 'residential-country',
+            label: 'Residential Country/Region',
+            value: 'Germany',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '该字段会影响地址和银行校验规则。',
+          },
+          {
+            key: 'residential-address',
+            label: 'Residential Address',
+            value: 'Germany 001',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            span: 'full',
+            hint: '填写可投递的完整街道地址，避免仅填写城市名。',
+          },
+          {
+            key: 'city',
+            label: 'City',
+            value: 'a',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '建议填写标准城市英文名，便于后续系统匹配。',
+          },
+          {
+            key: 'state',
+            label: 'State/Province',
+            value: 'Berlin',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '州/省份字段应与邮编和国家保持一致。',
+          },
+          {
+            key: 'post-code',
+            label: 'Post Code',
+            value: '123456',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '邮编用于地址验证，请确认与城市匹配。',
+          },
+        ],
+      },
+      {
+        id: 'bank',
+        label: 'Bank Information',
+        fields: [
+          {
+            key: 'bank-country',
+            label: 'Bank Country/Region',
+            value: 'Germany',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '银行国家与收款国家不一致时，可能需要中转行信息。',
+          },
+          {
+            key: 'bank-name',
+            label: 'Bank Name',
+            value: 'bank name',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '使用银行官方名称，避免简称。',
+          },
+          {
+            key: 'holder-name',
+            label: 'Account Holder Name',
+            value: 'Muller Hans',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '账户名应与合同签署主体一致。',
+          },
+          {
+            key: 'account-number',
+            label: 'Account Number',
+            value: 'Not provided',
+            required: true,
+            status: 'Missing',
+            tone: 'critical',
+            hint: '缺失时会阻塞 payout 设置，无法提交审核。',
+          },
+          {
+            key: 'bank-id-type',
+            label: 'Bank Identifier Type',
+            value: 'Not provided',
+            required: true,
+            status: 'Missing',
+            tone: 'warning',
+            hint: '例如 IBAN / SWIFT / Local Bank ID，请按国家规范选择。',
+          },
+          {
+            key: 'intermediary-swift',
+            label: 'Intermediary Bank SWIFT',
+            value: 'Optional',
+            required: false,
+            status: 'Optional',
+            tone: 'neutral',
+            hint: '跨境付款场景下建议填写，用于提升到账成功率。',
+          },
+          {
+            key: 'branch-address',
+            label: 'Bank Branch Address',
+            value: 'bank address',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            span: 'full',
+            hint: '填写银行分行地址，便于支付链路追踪。',
+          },
+        ],
+      },
+      {
+        id: 'contract',
+        label: 'Contract Info',
+        fields: [
+          {
+            key: 'contract-start',
+            label: 'Contract Start Date',
+            value: '2026-05-01',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '起始日期应不早于资料确认完成时间。',
+          },
+          {
+            key: 'contract-type',
+            label: 'Contract Type',
+            value: 'Independent Contractor',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '合同类型将决定模板和审批路径。',
+          },
+          {
+            key: 'service-country',
+            label: 'Service Country/Region',
+            value: 'Germany',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '服务国家用于选择合同条款和税务规则。',
+          },
+        ],
+      },
+      {
+        id: 'payment',
+        label: 'Payment Setting',
+        fields: [
+          {
+            key: 'currency',
+            label: 'Currency',
+            value: 'USD',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '请确认与客户结算币种一致。',
+          },
+          {
+            key: 'payment-cycle',
+            label: 'Payment Cycle',
+            value: 'Monthly',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '付款周期会影响 payroll 截止时间配置。',
+          },
+          {
+            key: 'payment-method',
+            label: 'Payment Method',
+            value: 'Bank Transfer',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '建议与银行信息类型一致，避免二次确认。',
+          },
+        ],
+      },
+    ],
+    workspaceSections: [
+      {
+        title: 'Readiness Snapshot',
+        type: 'cards',
+        items: [
+          { label: 'Required Fields', value: '19 / 21 Completed', tone: 'warning' },
+          { label: 'Blockers', value: '2 Open', tone: 'critical' },
+          { label: 'Attachments', value: '1 / 1 Uploaded', tone: 'ok' },
+          { label: 'Last Update', value: '2026-04-09 17:37', tone: 'neutral' },
+        ],
+      },
+    ],
+    contextPanels: [
+      {
+        title: 'Task Information',
+        items: [
+          ['Task ID', 'COR-T2'],
+          ['Request ID', '202604081501249800'],
+          ['Task Type', 'collect_contractor_info (Contractor Fill in Personal Info.)'],
+          ['Workflow', 'COR-NC-v1'],
+        ],
+      },
+      {
+        title: 'Request Summary',
+        items: [
+          ['Service', 'COR / New Contractor'],
+          ['Location', 'Germany'],
+          ['Client', 'DEMO03 / DEMO03'],
+          ['Create Time', '2026-04-08 15:04:22'],
+        ],
+      },
+      {
+        title: 'Previous Task Outcome',
+        items: [
+          ['Task', 'Initiate Request'],
+          ['Status', 'Done'],
+          ['Result', 'Contractor profile created'],
+          ['Handoff', 'Proceed to info collection'],
+        ],
+      },
+    ],
+    aiPanel: {
+      suggestions: [
+        '先按国家规则确认 Identity Type 与附件一致，再补齐银行字段。',
+        '若 Residence Country 与 Bank Country 不一致，请在提交前补充备注说明。',
+      ],
+      risks: [
+        'Account Number 缺失会阻塞 1.1.5 审核通过。',
+        'Bank Identifier Type 未选择会导致付款链路校验失败。',
+      ],
+      missing: ['Account Number', 'Bank Identifier Type', 'Cross-border explanation note'],
+      nextActions: [
+        '补齐 Bank Information 后先 Save Draft，再执行 Submit for Review。',
+        '使用 AI 生成给 SD 的备注文案，解释跨境收款信息。',
+      ],
+    },
+    tabs: ['Task Workspace'],
+    activeTab: 'Task Workspace',
+    currentView: {
+      title: 'Task Workspace',
+      caption: 'COR 任务详情按 taskType 固定渲染，不再依赖 flow template。',
+      columns: ['Section', 'Completion', 'Risk'],
+      rows: [
+        ['Identity', 'Complete', 'None'],
+        ['Contact', 'Incomplete', 'Missing phone number'],
+        ['Bank Details', 'Incomplete', 'Missing account number'],
+      ],
+    },
+    tables: [],
+    ai: {
+      executiveSummary: '当前任务处于 contractor 填写阶段，存在 2 个阻塞项；建议先完成提交前预检再提交 SD 审核。',
+      outputs: [['Missing fields', '3'], ['Attachment checks', '1']],
+      quickActions: ['Save Draft', 'Generate Note for SD', 'Submit for Review'],
+      rules: [
+        ['Identity Completeness', 'Pass', 'Identity fields are complete'],
+        ['Contact Completeness', 'Pass', 'Contact fields are complete'],
+        ['Bank Readiness', 'Blocker', 'Account number is missing'],
+        ['Cross-border Note', 'Warning', 'Residence and bank country mismatch needs explanation'],
+      ],
+      anomalies: [
+        {
+          id: 'cor-bank-missing',
+          severity: 'critical',
+          summary: '银行账户号缺失，会直接阻塞提交审核。',
+          outputs: ['Bank readiness check'],
+          aiRecommendation: 'Require account number before completion.',
+          quickActions: ['Save Draft'],
+          title: 'Missing Bank Account',
+          detail: 'Account number missing',
+          impact: 'Payment setup risk',
+          recommendation: 'Block completion until provided',
+        },
+        {
+          id: 'cor-cross-border-note',
+          severity: 'warning',
+          summary: '跨境银行信息缺少解释备注，可能触发 SD 退回。',
+          outputs: ['Consistency check'],
+          aiRecommendation: 'Generate and attach cross-border explanation note before submit.',
+          quickActions: ['Generate Note for SD'],
+          title: 'Missing Cross-border Note',
+          detail: 'No explanation for residence/bank country mismatch',
+          impact: 'Review rework risk',
+          recommendation: 'Add explanation note before submission',
+        },
+      ],
+      actions: ['Save Draft', 'Remind Contractor', 'Mark Task Complete'],
+    },
+  },
+  {
+    id: 'cor-task-create-agreement-send-client',
+    phase: 'COR Task Detail',
+    title: 'Create Agreement & Send to Client',
+    status: 'Draft In Progress',
+    accent: 'interface',
+    subtitle: 'SD 基于统一模板与 Butter 数据生成协议，完成预览后发送给 Client Review。',
+    stats: [
+      ['Assignee', 'SD'],
+      ['Due Date', '2026-04-10'],
+      ['Remind Date', '2026-04-09'],
+      ['Task ID', 'COR-T5'],
+    ],
+    taskGoal: '补齐必填字段后生成协议，在线预览无误后发送给 Client 确认。',
+    taskActions: ['Save Draft', 'Generate Agreement', 'Send for Review'],
+    formWorkspaceTitle: 'Agreement Builder',
+    formWorkspaceHint: '先填写必需字段，再生成并预览协议',
+    formGroups: [
+      {
+        id: 'agreement-fields',
+        label: 'Agreement Fields',
+        fields: [
+          {
+            key: 'client-name',
+            label: 'Client Name',
+            value: 'DEMO03 GmbH',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '必填。用于合同抬头和签署方展示。',
+          },
+          {
+            key: 'contractor-name',
+            label: 'Contractor Name',
+            value: 'MULLER HANS',
+            required: true,
+            status: 'Auto Filled',
+            tone: 'ok',
+            hint: '默认由 Account Holder Name 自动转大写，可手动编辑。',
+          },
+          {
+            key: 'registration-number',
+            label: 'Registration Number',
+            value: 'Optional',
+            required: false,
+            status: 'Optional',
+            tone: 'neutral',
+            hint: '可选。无注册号可留空。',
+          },
+          {
+            key: 'company-address',
+            label: 'Company Address',
+            value: 'Unter den Linden 15, Berlin 10117, Germany',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            span: 'full',
+            hint: '必填。请填写可用于法律通知的完整注册地址。',
+          },
+          {
+            key: 'client-incorporate-country',
+            label: 'Client Incorporate Country',
+            value: 'Germany',
+            required: true,
+            status: 'Completed',
+            tone: 'ok',
+            hint: '必填。用于合同主体条款与适用法域落位。',
+          },
+        ],
+      },
+    ],
+    workspaceSections: [
+      {
+        title: 'Readiness Snapshot',
+        caption: '生成协议前需先满足必填字段条件。',
+        type: 'cards',
+        items: [
+          { label: 'Required Fields', value: '4 / 4 Completed', tone: 'ok' },
+          { label: 'Optional Fields', value: '1', tone: 'neutral' },
+          { label: 'Additional Details', value: '2 Items Editable', tone: 'ok' },
+          { label: 'Preview Status', value: 'Ready to generate', tone: 'neutral' },
+        ],
+      },
+      {
+        title: 'Additional Key Details',
+        caption: '可追加 Item 和 Detail，作为合同补充条款输入。',
+        type: 'table',
+        columns: ['Item', 'Detail', 'Status', 'Action'],
+        rows: [
+          ['Notice Period', '30 calendar days', 'Editable', { kind: 'action-set', actions: [{ label: 'Edit' }, { label: 'Delete' }] }],
+          ['Payment Terms', 'Net 15 after invoice', 'Editable', { kind: 'action-set', actions: [{ label: 'Edit' }, { label: 'Delete' }] }],
+          ['New entry', 'Add item and detail', 'Draft', { kind: 'action-set', actions: [{ label: 'Add Item' }, { label: 'Add Detail' }] }],
+        ],
+      },
+    ],
+    contextPanels: [
+      {
+        title: 'Task Information',
+        items: [
+          ['Task ID', 'COR-T5'],
+          ['Request ID', '202604081501249800'],
+          ['Task Type', 'create_agreement_send_to_client'],
+          ['Workflow', 'COR-NC-v1'],
+        ],
+      },
+      {
+        title: 'Request Summary',
+        items: [
+          ['Service', 'COR / New Contractor'],
+          ['Location', 'Germany'],
+          ['Contractor', 'Muller Hans'],
+          ['Client', 'DEMO03 / DEMO03'],
+        ],
+      },
+      {
+        title: 'Previous Task Outcome',
+        items: [
+          ['Task', 'Review Contractor Info'],
+          ['Status', 'Done'],
+          ['Result', 'Contractor profile approved for agreement drafting'],
+          ['Handoff', 'Proceed to agreement generation'],
+        ],
+      },
+      {
+        title: 'Integration Status',
+        items: [
+          ['Provider', 'Butter Contract Engine'],
+          ['Retrieval Status', 'Butter data ready'],
+          ['Last Generate Time', '-'],
+          ['Last Error', '-'],
+        ],
+      },
+    ],
+    aiPanel: {
+      suggestions: ['必填字段已完整，可直接点击 Generate Agreement 进入在线预览。'],
+      risks: ['发送前仍需检查合同抬头、公司地址和 Additional Key Details 是否正确映射。'],
+      missing: ['No blocker'],
+      nextActions: ['点击 Generate Agreement；预览确认无误后执行 Send for Review。'],
+    },
+    tabs: ['Task Workspace'],
+    activeTab: 'Task Workspace',
+    currentView: {
+      title: 'Task Workspace',
+      caption: '按“填写 -> 生成 -> 预览 -> 发送”流程组织页面，替代旧的发给 contractor 发送页。',
+      columns: ['Stage', 'Progress', 'Remark'],
+      rows: [
+        ['Fill Required Fields', 'Completed', 'Required inputs are ready'],
+        ['Generate Agreement', 'Ready', 'Available directly below the form'],
+        ['Online Preview', 'Pending', 'Open after clicking Generate Agreement'],
+      ],
+    },
+    tables: [],
+    ai: {
+      executiveSummary: '当前页面已满足生成条件，Generate Agreement 应作为填写区后的直接下一步动作。',
+      outputs: [['Required fields check', '4'], ['Additional key details', '2']],
+      quickActions: ['Generate Agreement', 'Open Preview', 'Send for Review'],
+      rules: [
+        ['Data Retrieval Readiness', 'Pass', 'Butter baseline data is available'],
+        ['Contractor Name Mapping', 'Pass', 'Account holder name converted to uppercase'],
+        ['Required Field Gate', 'Pass', 'All required manual fields are completed'],
+      ],
+      anomalies: [
+        {
+          id: 'cor-preview-before-send',
+          severity: 'info',
+          summary: '建议先在线预览协议内容，再发送给 Client Review。',
+          outputs: ['Preview recommendation'],
+          aiRecommendation: 'Open generated agreement preview and verify key clauses.',
+          quickActions: ['Open Preview'],
+          title: 'Preview First',
+          detail: 'Preview step is pending',
+          impact: 'Lower review rework risk',
+          recommendation: 'Send for review only after preview validation',
+        },
+      ],
+      actions: ['Save Draft', 'Generate Agreement', 'Send for Review'],
+    },
+    agreementPreview: {
+      title: 'Independent Contractor Agreement',
+      version: 'Draft v2026.04.10',
+      sections: [
+        {
+          heading: 'Parties',
+          body:
+            'This Independent Contractor Agreement is made between DEMO03 GmbH, a company incorporated in Germany with its registered address at Unter den Linden 15, Berlin 10117, Germany, and MULLER HANS.',
+        },
+        {
+          heading: 'Services',
+          body:
+            'The Contractor will provide services in Germany under the commercial terms stored in Butter. Additional agreed details include a 30 calendar day notice period and Net 15 payment terms after invoice.',
+        },
+        {
+          heading: 'Execution Check',
+          body:
+            'Preview generated from Butter baseline data plus manual agreement fields. Review the party names, company address, incorporation country, and additional key details before sending for client review.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'cor-task-review-signed-contract',
+    phase: 'COR Task Detail',
+    title: 'Review Signed Contract',
+    status: 'Review Pending',
+    accent: 'post',
+    subtitle: '审签任务聚焦签署结果、合同版本一致性和归档确认，决定是否进入下一交付节点。',
+    stats: [
+      ['Assignee', 'SD'],
+      ['Due Date', '2026-04-11'],
+      ['Remind Date', '2026-04-10'],
+      ['Task ID', 'COR-T7'],
+    ],
+    taskGoal: '确认签署完整性与归档状态，确保审计链路闭环后再完成任务。',
+    taskActions: ['Refresh from DocuSign', 'Upload Archive Proof', 'Mark Task Complete'],
+    workspaceSections: [
+      {
+        title: 'Signature Status',
+        caption: '按 signer 展示签署时间和状态，作为任务主决策依据。',
+        type: 'table',
+        columns: ['Level', 'Signer', 'Email', 'Signed Date', 'Status'],
+        rows: [
+          ['1', 'Bo Li Cheng', 'nancy.pan@biposervice.com', '2026-04-08 15:29:54', 'Completed'],
+          ['2', 'Muller Hans', 'hans.m@protonmail.de', '2026-04-08 15:30:45', 'Completed'],
+        ],
+      },
+      {
+        title: 'Review Checklist',
+        caption: '签署完成后的必检项，确保任务可安全关闭。',
+        type: 'table',
+        columns: ['Checklist Item', 'Current Status', 'Evidence', 'Decision'],
+        rows: [
+          ['All required signers completed', 'Pass', '2 / 2 completed', 'Accept'],
+          ['Document version consistency', 'Pass', 'v2026.04.09 matched', 'Accept'],
+          ['Archive confirmation', 'Pending', 'Archive receipt missing', 'Hold'],
+        ],
+      },
+      {
+        title: 'Review Decision Area',
+        caption: '执行动作前先确认审查结论。',
+        type: 'cards',
+        items: [
+          { label: 'Current Conclusion', value: 'Cannot close yet', tone: 'warning' },
+          { label: 'Blocking Item', value: 'Archive confirmation pending', tone: 'critical' },
+          { label: 'Recommended Action', value: 'Upload archive proof', tone: 'ok' },
+        ],
+      },
+    ],
+    contextPanels: [
+      {
+        title: 'Task Information',
+        items: [
+          ['Task ID', 'COR-T7'],
+          ['Request ID', '202604081501249800'],
+          ['Task Type', 'review_signed_contract'],
+          ['Workflow', 'COR-NC-v1'],
+        ],
+      },
+      {
+        title: 'Request Summary',
+        items: [
+          ['Service', 'COR / New Contractor'],
+          ['Location', 'Germany'],
+          ['Contractor', 'Muller Hans'],
+          ['Create Time', '2026-04-08 15:31:46'],
+        ],
+      },
+          {
+            title: 'Previous Task Outcome',
+            items: [
+              ['Task', 'Create Agreement & Send to Client'],
+              ['Status', 'Done'],
+              ['Result', 'Agreement sent to client review'],
+              ['Handoff', 'Proceed to review'],
+            ],
+          },
+    ],
+    aiPanel: {
+      suggestions: ['先补齐归档凭证，再关闭当前任务。'],
+      risks: ['若未归档直接关闭，审计链路会出现缺口。'],
+      missing: ['Archive confirmation receipt'],
+      nextActions: ['点击 Upload Archive Proof，完成后再 Mark Task Complete。'],
+    },
+    tabs: ['Task Workspace'],
+    activeTab: 'Task Workspace',
+    currentView: {
+      title: 'Task Workspace',
+      caption: '审签任务按签署状态与审核清单布局，替代原始模板堆叠。',
+      columns: ['Review Dimension', 'Result', 'State'],
+      rows: [
+        ['Signer Completion', '2 / 2 completed', 'Pass'],
+        ['Version Consistency', 'v2026.04.09 matched', 'Pass'],
+        ['Archive Confirmation', 'Receipt missing', 'Pending'],
+      ],
+    },
+    tables: [],
+    ai: {
+      executiveSummary: '签署状态已完成，当前阻塞项为归档确认缺失。',
+      outputs: [['Signature status', '2'], ['Review checklist', '3']],
+      quickActions: ['Refresh from DocuSign', 'Upload Archive Proof'],
+      rules: [
+        ['Signer Completion', 'Pass', 'All required signers are completed'],
+        ['Version Consistency', 'Pass', 'Document version is matched'],
+        ['Archive Confirmation', 'Warning', 'Archive proof still pending'],
+      ],
+      anomalies: [
+        {
+          id: 'cor-review-checklist',
+          severity: 'warning',
+          summary: '归档确认未完成，建议补齐凭证后再结束任务。',
+          outputs: ['Review checklist'],
+          aiRecommendation: 'Upload archive proof before closing task.',
+          quickActions: ['Upload Archive Proof'],
+          title: 'Archive Pending',
+          detail: 'Archive receipt missing',
+          impact: 'Audit trace incomplete',
+          recommendation: 'Complete archive confirmation first',
+        },
+      ],
+      actions: ['Save Draft', 'Upload Archive Proof', 'Mark Task Complete'],
+    },
+  },
+]
 
 function App() {
-  const allPages = [...prePayrollPages, ...requestPages]
+  const allPages = [...prePayrollPages, ...corPages, ...requestPages]
   const [activePage, setActivePage] = useState(allPages[0].id)
   const [activeIssueId, setActiveIssueId] = useState(null)
   const [flashRowId, setFlashRowId] = useState(null)
   const [activeSeverity, setActiveSeverity] = useState('all')
   const [activeTab, setActiveTab] = useState(allPages[0].activeTab ?? allPages[0].tabs?.[0] ?? null)
   const [activeSubTab, setActiveSubTab] = useState(null)
+  const [activeFormGroup, setActiveFormGroup] = useState(allPages[0].formGroups?.[0]?.id ?? null)
+  const [activeFieldKey, setActiveFieldKey] = useState(allPages[0].formGroups?.[0]?.fields?.[0]?.key ?? null)
+  const [activeContextModalTitle, setActiveContextModalTitle] = useState(null)
+  const [previousOutcomeExpanded, setPreviousOutcomeExpanded] = useState(false)
   const [tableFilters, setTableFilters] = useState({ riskLevel: 'all', department: 'all', anomalyType: 'all' })
+  const [expandedGroups, setExpandedGroups] = useState({ prePayroll: true, cor: true, requests: true })
+  const [generatedAgreementPages, setGeneratedAgreementPages] = useState({})
   const page = allPages.find((item) => item.id === activePage) ?? allPages[0]
   const currentTab = activeTab ?? page.activeTab ?? page.tabs?.[0] ?? null
   const currentSubTabs = getCurrentSubTabs(page, currentTab)
@@ -2285,6 +3007,22 @@ function App() {
   const departmentOptions = shouldShowCurrentTabFilters ? getFilterOptions(currentView.rows, 'department') : []
   const anomalyTypeOptions = shouldShowCurrentTabFilters ? getFilterOptions(currentView.rows, 'anomalyType') : []
   const riskLevelOptions = shouldShowCurrentTabFilters ? getFilterOptions(currentView.rows, 'riskLevel') : []
+  const currentFormGroup = page.formGroups?.find((group) => group.id === activeFormGroup) ?? page.formGroups?.[0] ?? null
+  const currentFormField = currentFormGroup?.fields?.find((field) => field.key === activeFieldKey) ?? currentFormGroup?.fields?.[0] ?? null
+  const readinessSection = page.workspaceSections?.find((section) => section.title === 'Readiness Snapshot') ?? null
+  const remainingWorkspaceSections = (page.workspaceSections ?? []).filter((section) => section.title !== 'Readiness Snapshot')
+  const topContextPanels = (page.contextPanels ?? []).filter(
+    (panel) => panel.title === 'Task Information' || panel.title === 'Request Summary'
+  )
+  const sideContextPanels = (page.contextPanels ?? []).filter(
+    (panel) => panel.title !== 'Previous Task Outcome' && panel.title !== 'Task Information' && panel.title !== 'Request Summary'
+  )
+  const previousOutcomePanel = (page.contextPanels ?? []).find(
+    (panel) => panel.title === 'Previous Task Outcome'
+  )
+  const activeContextModalPanel = topContextPanels.find((panel) => panel.title === activeContextModalTitle) ?? null
+  const isAgreementBuilderPage = page.id === 'cor-task-create-agreement-send-client'
+  const agreementGenerated = Boolean(generatedAgreementPages[page.id])
 
   const navigateToPage = (item) => {
     setActivePage(item.id)
@@ -2292,7 +3030,24 @@ function App() {
     setActiveSeverity('all')
     setActiveTab(item.activeTab ?? item.tabs?.[0] ?? null)
     setActiveSubTab(item.subTabsByTab?.[item.activeTab ?? item.tabs?.[0] ?? null]?.[0] ?? null)
+    setActiveFormGroup(item.formGroups?.[0]?.id ?? null)
+    setActiveFieldKey(item.formGroups?.[0]?.fields?.[0]?.key ?? null)
+    setActiveContextModalTitle(null)
     setTableFilters({ riskLevel: 'all', department: 'all', anomalyType: 'all' })
+  }
+
+  const handleAgreementBuilderAction = (action) => {
+    if (!isAgreementBuilderPage) {
+      return
+    }
+
+    if (action === 'Generate Agreement') {
+      setGeneratedAgreementPages((current) => ({ ...current, [page.id]: true }))
+    }
+  }
+
+  const toggleSidebarGroup = (groupKey) => {
+    setExpandedGroups((current) => ({ ...current, [groupKey]: !current[groupKey] }))
   }
 
   useEffect(() => {
@@ -2308,15 +3063,35 @@ function App() {
       return
     }
 
-    setFlashRowId(firstLinkedRowId)
-    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+    const rafId = window.requestAnimationFrame(() => {
+      setFlashRowId(firstLinkedRowId)
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+    })
 
     const timeoutId = window.setTimeout(() => {
       setFlashRowId((currentRowId) => (currentRowId === firstLinkedRowId ? null : currentRowId))
     }, 1400)
 
-    return () => window.clearTimeout(timeoutId)
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      window.clearTimeout(timeoutId)
+    }
   }, [activeIssueId, currentTab, page])
+
+  useEffect(() => {
+    if (!activeContextModalTitle) {
+      return
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveContextModalTitle(null)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeContextModalTitle])
 
   return (
     <div className="prototype-shell">
@@ -2327,38 +3102,105 @@ function App() {
         </div>
 
         <div className="sidebar-group">
-          <span className="sidebar-label">Pre-Payroll</span>
-          {prePayrollPages.map((item, index) => (
-            <button
-              key={item.id}
-              className={`sidebar-link ${item.id === activePage ? 'is-active' : ''}`}
-              onClick={() => navigateToPage(item)}
-              type="button"
-            >
-              <span>{String(index + 1).padStart(2, '0')}</span>
-              <strong>{item.title}</strong>
-              <small>{item.phase}</small>
-            </button>
-          ))}
+          <button
+            className="sidebar-group-toggle"
+            onClick={() => toggleSidebarGroup('prePayroll')}
+            type="button"
+            aria-expanded={expandedGroups.prePayroll}
+            aria-controls="sidebar-group-pre-payroll"
+          >
+            <span className="sidebar-label">Pre-Payroll</span>
+            <span className={`sidebar-group-caret ${expandedGroups.prePayroll ? 'is-open' : ''}`} aria-hidden="true">
+              ▸
+            </span>
+          </button>
+          {expandedGroups.prePayroll ? (
+            <div className="sidebar-group-items" id="sidebar-group-pre-payroll">
+              {prePayrollPages.map((item, index) => (
+                <button
+                  key={item.id}
+                  className={`sidebar-link ${item.id === activePage ? 'is-active' : ''}`}
+                  onClick={() => navigateToPage(item)}
+                  type="button"
+                >
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{item.title}</strong>
+                  <small>{item.phase}</small>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="sidebar-group">
-          <span className="sidebar-label">Requests</span>
-          {requestPages.length === 0 ? (
-            <div className="sidebar-empty">新页面将放在这里</div>
+          <button
+            className="sidebar-group-toggle"
+            onClick={() => toggleSidebarGroup('cor')}
+            type="button"
+            aria-expanded={expandedGroups.cor}
+            aria-controls="sidebar-group-cor"
+          >
+            <span className="sidebar-label">COR</span>
+            <span className={`sidebar-group-caret ${expandedGroups.cor ? 'is-open' : ''}`} aria-hidden="true">
+              ▸
+            </span>
+          </button>
+          {expandedGroups.cor ? (
+            <div className="sidebar-group-items" id="sidebar-group-cor">
+              {corPages.length === 0 ? (
+                <div className="sidebar-empty">COR 页面将放在这里</div>
+              ) : (
+                corPages.map((item, index) => (
+                  <button
+                    key={item.id}
+                    className={`sidebar-link ${item.id === activePage ? 'is-active' : ''}`}
+                    onClick={() => navigateToPage(item)}
+                    type="button"
+                  >
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <strong>{item.title}</strong>
+                    <small>{item.phase}</small>
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="sidebar-group">
+          <button
+            className="sidebar-group-toggle"
+            onClick={() => toggleSidebarGroup('requests')}
+            type="button"
+            aria-expanded={expandedGroups.requests}
+            aria-controls="sidebar-group-requests"
+          >
+            <span className="sidebar-label">Requests</span>
+            <span className={`sidebar-group-caret ${expandedGroups.requests ? 'is-open' : ''}`} aria-hidden="true">
+              ▸
+            </span>
+          </button>
+          {expandedGroups.requests ? (
+            <div className="sidebar-group-items" id="sidebar-group-requests">
+              {requestPages.length === 0 ? (
+                <div className="sidebar-empty">新页面将放在这里</div>
+              ) : (
+                requestPages.map((item, index) => (
+                  <button
+                    key={item.id}
+                    className={`sidebar-link ${item.id === activePage ? 'is-active' : ''}`}
+                    onClick={() => navigateToPage(item)}
+                    type="button"
+                  >
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <strong>{item.title}</strong>
+                    <small>{item.phase}</small>
+                  </button>
+                ))
+              )}
+            </div>
           ) : (
-            requestPages.map((item, index) => (
-              <button
-                key={item.id}
-                className={`sidebar-link ${item.id === activePage ? 'is-active' : ''}`}
-                onClick={() => navigateToPage(item)}
-                type="button"
-              >
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <strong>{item.title}</strong>
-                <small>{item.phase}</small>
-              </button>
-            ))
+            null
           )}
         </div>
       </aside>
@@ -2369,21 +3211,357 @@ function App() {
           
           <div className="page-header-content">
             <div className="page-header-title-block">
-              <span className="page-kicker">{page.phase}</span>
+              <span className="page-kicker">
+                {page.phase}
+                {page.id.startsWith('cor-task-') && page.stats.find(([l]) => l === 'Due Date') ? (
+                  <span className="page-due-date">
+                    <span className="due-date-label">Due Date:</span> {page.stats.find(([l]) => l === 'Due Date')[1]}
+                  </span>
+                ) : null}
+              </span>
               <h2>{page.title}</h2>
             </div>
             
-            <div className="header-metrics-row">
-              {page.stats.map(([label, value]) => (
-                <div className="mini-stat" key={label}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
-                </div>
-              ))}
-            </div>
+            {!page.id.startsWith('cor-task-') && (
+              <div className="header-metrics-row">
+                {page.stats.map(([label, value]) => (
+                  <div className="mini-stat" key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {page.id.startsWith('cor-task-') && topContextPanels.length ? (
+              <section className="cor-header-panels" aria-label="Task and request summary">
+                {topContextPanels.map((panel) => (
+                  <button
+                    className="cor-header-link-button"
+                    data-context={panel.title === 'Task Information' ? 'task-info' : panel.title === 'Request Summary' ? 'request-summary' : undefined}
+                    key={`top-${panel.title}`}
+                    onClick={() => setActiveContextModalTitle(panel.title)}
+                    type="button"
+                  >
+                    {panel.title === 'Task Information'
+                      ? 'View Task Information'
+                      : panel.title === 'Request Summary'
+                        ? 'View Request Summary'
+                        : panel.title}
+                  </button>
+                ))}
+              </section>
+            ) : null}
           </div>
         </header>
 
+        {page.id.startsWith('cor-task-') ? (
+          <>
+          <div className="cor-task-layout">
+            <section className="primary-column">
+              {previousOutcomePanel ? (
+                <section className={`section-card previous-outcome-panel ${previousOutcomeExpanded ? 'is-expanded' : ''}`}>
+                  <button 
+                    className="previous-outcome-toggle" 
+                    onClick={() => setPreviousOutcomeExpanded(!previousOutcomeExpanded)}
+                    aria-expanded={previousOutcomeExpanded}
+                    type="button"
+                  >
+                    <div className="previous-outcome-header">
+                      <span className="previous-outcome-icon" aria-hidden="true">✓</span>
+                      <h3>{previousOutcomePanel.title}</h3>
+                    </div>
+                    <span className="previous-outcome-caret" aria-hidden="true">▾</span>
+                  </button>
+                  {previousOutcomeExpanded && (
+                    <div className="previous-outcome-content">
+                      <dl className="cor-context-list horizontal-list">
+                        {previousOutcomePanel.items.map(([label, value]) => (
+                          <div className="context-list-item" key={`${previousOutcomePanel.title}-${label}`}>
+                            <dt>{label}</dt>
+                            <dd>{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {readinessSection ? (
+                <section className="section-card" key={readinessSection.title}>
+                  <div className="section-head">
+                    <h3>{readinessSection.title}</h3>
+                    <p>{readinessSection.caption}</p>
+                  </div>
+                  {readinessSection.type === 'cards' ? (
+                    <div className="cor-workspace-cards">
+                      {readinessSection.items.map((item) => (
+                        <article className={`cor-workspace-card tone-${item.tone ?? 'neutral'}`} key={`${readinessSection.title}-${item.label}`}>
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="table-shell compact-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            {readinessSection.columns.map((column) => (
+                              <th key={column}>{column}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {readinessSection.rows.map((row) => (
+                            <tr key={`${readinessSection.title}-${row.join('-')}`}>
+                              {row.map((cell, index) => (
+                                <td key={`${readinessSection.title}-${index}-${cell}`}>{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {page.formGroups?.length ? (
+                <section className="section-card cor-form-workspace">
+                  <div className="section-head compact">
+                    <div className="section-title-block">
+                      <h3>{page.formWorkspaceTitle ?? 'Muller Hans'}</h3>
+                      <p className="section-eyebrow">{page.formWorkspaceHint ?? '按分组填写资料，点击字段查看填写提示'}</p>
+                    </div>
+                  </div>
+                  {page.formGroups.length > 1 ? (
+                    <div className="cor-form-tabs" role="tablist" aria-label="Collect contractor information groups">
+                      {page.formGroups.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={currentFormGroup?.id === group.id}
+                          className={`cor-form-tab ${currentFormGroup?.id === group.id ? 'is-active' : ''}`}
+                          onClick={() => {
+                            setActiveFormGroup(group.id)
+                            setActiveFieldKey(group.fields?.[0]?.key ?? null)
+                          }}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {currentFormGroup ? (
+                    <div className="cor-form-grid">
+                      {currentFormGroup.fields.map((item) => (
+                        <button
+                          type="button"
+                          className={`cor-form-field tone-${item.tone ?? 'neutral'} ${item.span === 'full' ? 'is-full' : ''} ${currentFormField?.key === item.key ? 'is-active' : ''}`.trim()}
+                          key={`${currentFormGroup.id}-${item.key}`}
+                          onClick={() => setActiveFieldKey(item.key)}
+                        >
+                          <div className="cor-form-field-head">
+                            <span className="cor-form-label">
+                              {item.required ? <em>*</em> : null}
+                              {item.label}
+                            </span>
+                          </div>
+                          <div className={`cor-form-value ${item.value === 'Not provided' ? 'is-empty' : ''}`}>{item.value}</div>
+                          {currentFormField?.key === item.key ? (
+                            <p className="cor-field-hint">{item.hint ?? '请按字段要求填写。'}</p>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {isAgreementBuilderPage ? (
+                    <div className="cor-inline-actions">
+                      {page.taskActions.map((action) => (
+                        <button
+                          key={action}
+                          className={`action-button ${getAgreementBuilderActionTone(action, agreementGenerated)}`}
+                          disabled={action === 'Send for Review' && !agreementGenerated}
+                          onClick={() => handleAgreementBuilderAction(action)}
+                          type="button"
+                        >
+                          {action}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {remainingWorkspaceSections.map((section) => (
+                <section className="section-card" key={section.title}>
+                  <div className="section-head">
+                    <h3>{section.title}</h3>
+                    <p>{section.caption}</p>
+                  </div>
+                  {section.type === 'cards' ? (
+                    <div className="cor-workspace-cards">
+                      {section.items.map((item) => (
+                        <article className={`cor-workspace-card tone-${item.tone ?? 'neutral'}`} key={`${section.title}-${item.label}`}>
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                        </article>
+                      ))}
+                    </div>
+                  ) : section.type === 'formGrid' ? (
+                    <div className="cor-form-grid">
+                      {section.items.map((item) => (
+                        <article
+                          className={`cor-form-field tone-${item.tone ?? 'neutral'} ${item.span === 'full' ? 'is-full' : ''}`.trim()}
+                          key={`${section.title}-${item.label}`}
+                        >
+                          <div className="cor-form-field-head">
+                            <span className="cor-form-label">
+                              {item.required ? <em>*</em> : null}
+                              {item.label}
+                            </span>
+                          </div>
+                          <div className={`cor-form-value ${item.value === 'Not provided' ? 'is-empty' : ''}`}>{item.value}</div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="table-shell compact-table">
+                      <table>
+                        <thead>
+                          <tr>
+                            {section.columns.map((column) => (
+                              <th key={column}>{column}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.rows.map((row) => (
+                            <tr key={`${section.title}-${row.join('-')}`}>
+                              {row.map((cell, index) => {
+                                const key = `${section.title}-${index}-${typeof cell === 'object' ? cell.label ?? index : cell}`
+                                return <td key={key}>{renderCellContent(cell)}</td>
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              ))}
+
+              {isAgreementBuilderPage && agreementGenerated ? (
+                <section className="section-card agreement-preview-section">
+                  <div className="section-head agreement-preview-head">
+                    <div>
+                      <h3>{page.agreementPreview.title}</h3>
+                      <p>合同已生成。请先完成在线预览，再发送给 Client Review。</p>
+                    </div>
+                    <div className="agreement-preview-actions">
+                      <button className="action-button is-secondary" onClick={() => handleAgreementBuilderAction('Generate Agreement')} type="button">
+                        Regenerate Agreement
+                      </button>
+                      <button className="action-button is-primary" type="button">
+                        Send for Review
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="agreement-preview-meta">
+                    <article className="cor-workspace-card tone-ok">
+                      <span>Document</span>
+                      <strong>{page.agreementPreview.title}</strong>
+                    </article>
+                    <article className="cor-workspace-card tone-neutral">
+                      <span>Version</span>
+                      <strong>{page.agreementPreview.version}</strong>
+                    </article>
+                    <article className="cor-workspace-card tone-neutral">
+                      <span>Preview Mode</span>
+                      <strong>Online Preview</strong>
+                    </article>
+                  </div>
+
+                  <div className="agreement-preview-sheet">
+                    {page.agreementPreview.sections.map((section) => (
+                      <section className="agreement-preview-block" key={section.heading}>
+                        <h4>{section.heading}</h4>
+                        <p>{section.body}</p>
+                      </section>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </section>
+
+            <aside className="cor-context-column">
+              {sideContextPanels.map((panel) => (
+                <section className="section-card cor-context-panel" key={panel.title}>
+                  <div className="section-head compact">
+                    <div className="section-title-block">
+                      <h3>{panel.title}</h3>
+                    </div>
+                  </div>
+                  <dl className="cor-context-list">
+                    {panel.items.map(([label, value]) => (
+                      <React.Fragment key={`${panel.title}-${label}`}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </React.Fragment>
+                    ))}
+                  </dl>
+                </section>
+              ))}
+
+              <section className="section-card cor-context-panel cor-ai-panel">
+                <div className="section-head compact">
+                  <div className="section-title-block">
+                    <h3>AI Copilot</h3>
+                  </div>
+                </div>
+                <div className="cor-ai-group">
+                  <h4>Suggestions</h4>
+                  <ul>
+                    {page.aiPanel?.suggestions?.map((item) => (
+                      <li key={`suggest-${item}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="cor-ai-group">
+                  <h4>Risk Alerts</h4>
+                  <ul>
+                    {page.aiPanel?.risks?.map((item) => (
+                      <li key={`risk-${item}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="cor-ai-group">
+                  <h4>Missing / Inconsistent</h4>
+                  <ul>
+                    {page.aiPanel?.missing?.map((item) => (
+                      <li key={`missing-${item}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="cor-ai-group">
+                  <h4>Recommended Next Action</h4>
+                  <ul>
+                    {page.aiPanel?.nextActions?.map((item) => (
+                      <li key={`next-${item}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            </aside>
+          </div>
+          </>
+        ) : (
         <div className="content-grid">
 	          <section className="primary-column">
 	            <section className="section-card ai-top-panel">
@@ -2822,18 +4000,48 @@ function App() {
 
           </section>
         </div>
+        )}
         
-        <div className="page-footer-actions">
-          {page.ai.actions.map((action, index) => (
-            <button
-              key={action}
-              className={`action-button ${getActionTone(action, index, page.ai.actions)}`}
-              type="button"
+        {!isAgreementBuilderPage ? (
+          <div className="page-footer-actions">
+            {page.ai.actions.map((action, index) => (
+              <button
+                key={action}
+                className={`action-button ${getActionTone(action, index, page.ai.actions)}`}
+                type="button"
+              >
+                {action}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {activeContextModalPanel ? (
+          <div className="cor-modal-backdrop" onClick={() => setActiveContextModalTitle(null)} role="presentation">
+            <section
+              aria-label={activeContextModalPanel.title}
+              aria-modal="true"
+              className={`cor-modal ${activeContextModalPanel.title === 'Previous Task Outcome' ? 'is-compact' : ''}`.trim()}
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
             >
-              {action}
-            </button>
-          ))}
-        </div>
+              <header className="cor-modal-header">
+                <h3>{activeContextModalPanel.title}</h3>
+                <button className="cor-modal-close" onClick={() => setActiveContextModalTitle(null)} type="button">
+                  ×
+                </button>
+              </header>
+              <dl className="cor-context-list cor-modal-list">
+                {activeContextModalPanel.items.map(([label, value]) => (
+                  <React.Fragment key={`${activeContextModalPanel.title}-${label}`}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            </section>
+          </div>
+        ) : null}
       </main>
     </div>
   )
