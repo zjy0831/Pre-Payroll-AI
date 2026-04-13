@@ -2660,7 +2660,7 @@ const corPages = [
       ['Task ID', 'COR-T5'],
     ],
     taskGoal: '补齐必填字段后生成协议，在线预览无误后发送给 Client 确认。',
-    taskActions: ['Save Draft', 'Generate Agreement', 'Send for Review'],
+    taskActions: ['Generate Agreement'],
     formWorkspaceTitle: 'Agreement Builder',
     formWorkspaceHint: '先填写必需字段，再生成并预览协议',
     formGroups: [
@@ -2731,13 +2731,11 @@ const corPages = [
       },
       {
         title: 'Additional Key Details',
-        caption: '可追加 Item 和 Detail，作为合同补充条款输入。',
-        type: 'table',
-        columns: ['Item', 'Detail', 'Status', 'Action'],
+        caption: '支持直接行内输入 Item 和 Detail，可继续新增补充条款。',
+        type: 'agreementDetailsEditor',
         rows: [
-          ['Notice Period', '30 calendar days', 'Editable', { kind: 'action-set', actions: [{ label: 'Edit' }, { label: 'Delete' }] }],
-          ['Payment Terms', 'Net 15 after invoice', 'Editable', { kind: 'action-set', actions: [{ label: 'Edit' }, { label: 'Delete' }] }],
-          ['New entry', 'Add item and detail', 'Draft', { kind: 'action-set', actions: [{ label: 'Add Item' }, { label: 'Add Detail' }] }],
+          ['Notice Period', '30 calendar days'],
+          ['Payment Terms', 'Net 15 after invoice'],
         ],
       },
     ],
@@ -2781,7 +2779,7 @@ const corPages = [
     ],
     aiPanel: {
       suggestions: ['必填字段已完整，可直接点击 Generate Agreement 进入在线预览。'],
-      risks: ['发送前仍需检查合同抬头、公司地址和 Additional Key Details 是否正确映射。'],
+      risks: ['发送前仍需检查合同抬头、公司地址和核心条款映射是否正确。'],
       missing: ['No blocker'],
       nextActions: ['点击 Generate Agreement；预览确认无误后执行 Send for Review。'],
     },
@@ -2821,7 +2819,7 @@ const corPages = [
           recommendation: 'Send for review only after preview validation',
         },
       ],
-      actions: ['Save Draft', 'Generate Agreement', 'Send for Review'],
+      actions: ['Generate Agreement', 'Send for Review'],
     },
     agreementPreview: {
       title: 'Independent Contractor Agreement',
@@ -2835,12 +2833,12 @@ const corPages = [
         {
           heading: 'Services',
           body:
-            'The Contractor will provide services in Germany under the commercial terms stored in Butter. Additional agreed details include a 30 calendar day notice period and Net 15 payment terms after invoice.',
+            'The Contractor will provide services in Germany under the commercial terms stored in Butter and approved agreement fields.',
         },
         {
           heading: 'Execution Check',
           body:
-            'Preview generated from Butter baseline data plus manual agreement fields. Review the party names, company address, incorporation country, and additional key details before sending for client review.',
+            'Preview generated from Butter baseline data plus manual agreement fields. Review the party names, company address, and incorporation country before sending for client review.',
         },
       ],
     },
@@ -2984,6 +2982,7 @@ function App() {
   const [tableFilters, setTableFilters] = useState({ riskLevel: 'all', department: 'all', anomalyType: 'all' })
   const [expandedGroups, setExpandedGroups] = useState({ prePayroll: true, cor: true, requests: true })
   const [generatedAgreementPages, setGeneratedAgreementPages] = useState({})
+  const [reviewRequestedAgreementPages, setReviewRequestedAgreementPages] = useState({})
   const page = allPages.find((item) => item.id === activePage) ?? allPages[0]
   const currentTab = activeTab ?? page.activeTab ?? page.tabs?.[0] ?? null
   const currentSubTabs = getCurrentSubTabs(page, currentTab)
@@ -3023,6 +3022,23 @@ function App() {
   const activeContextModalPanel = topContextPanels.find((panel) => panel.title === activeContextModalTitle) ?? null
   const isAgreementBuilderPage = page.id === 'cor-task-create-agreement-send-client'
   const agreementGenerated = Boolean(generatedAgreementPages[page.id])
+  const agreementSentForReview = Boolean(reviewRequestedAgreementPages[page.id])
+  const canGenerateAgreement = true
+  const canSendAgreementForReview = agreementGenerated && !agreementSentForReview
+  const agreementPreviewSections = isAgreementBuilderPage ? (page.agreementPreview?.sections ?? []) : []
+  const displayedReadinessItems =
+    isAgreementBuilderPage && readinessSection?.type === 'cards'
+      ? readinessSection.items.map((item) => {
+          if (item.label === 'Preview Status') {
+            return {
+              ...item,
+              value: agreementGenerated ? 'Generated preview ready' : 'Ready to generate',
+            }
+          }
+
+          return item
+        })
+      : readinessSection?.items ?? []
 
   const navigateToPage = (item) => {
     setActivePage(item.id)
@@ -3042,7 +3058,16 @@ function App() {
     }
 
     if (action === 'Generate Agreement') {
+      if (!canGenerateAgreement) {
+        return
+      }
+
       setGeneratedAgreementPages((current) => ({ ...current, [page.id]: true }))
+      setReviewRequestedAgreementPages((current) => ({ ...current, [page.id]: false }))
+    }
+
+    if (action === 'Send for Review' && canSendAgreementForReview) {
+      setReviewRequestedAgreementPages((current) => ({ ...current, [page.id]: true }))
     }
   }
 
@@ -3205,7 +3230,7 @@ function App() {
         </div>
       </aside>
 
-      <main className={`prototype-main accent-${page.accent}`}>
+      <main className={`prototype-main accent-${page.accent} ${isAgreementBuilderPage ? 'has-floating-action' : ''}`.trim()}>
         <header className="page-header">
           <div className={`status-badge status-${page.accent}`}>{page.status}</div>
           
@@ -3296,7 +3321,7 @@ function App() {
                   </div>
                   {readinessSection.type === 'cards' ? (
                     <div className="cor-workspace-cards">
-                      {readinessSection.items.map((item) => (
+                      {displayedReadinessItems.map((item) => (
                         <article className={`cor-workspace-card tone-${item.tone ?? 'neutral'}`} key={`${readinessSection.title}-${item.label}`}>
                           <span>{item.label}</span>
                           <strong>{item.value}</strong>
@@ -3380,21 +3405,6 @@ function App() {
                     </div>
                   ) : null}
 
-                  {isAgreementBuilderPage ? (
-                    <div className="cor-inline-actions">
-                      {page.taskActions.map((action) => (
-                        <button
-                          key={action}
-                          className={`action-button ${getAgreementBuilderActionTone(action, agreementGenerated)}`}
-                          disabled={action === 'Send for Review' && !agreementGenerated}
-                          onClick={() => handleAgreementBuilderAction(action)}
-                          type="button"
-                        >
-                          {action}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
                 </section>
               ) : null}
 
@@ -3456,20 +3466,33 @@ function App() {
                 </section>
               ))}
 
+              {isAgreementBuilderPage ? (
+                <section className="section-card agreement-generate-section">
+                  <div className="section-head agreement-generate-head">
+                    <div>
+                      <h3>Agreement Generation</h3>
+                      <p>Generate agreement after required fields are complete.</p>
+                    </div>
+                    <button
+                      className={`action-button ${getAgreementBuilderActionTone('Generate Agreement', agreementGenerated)}`}
+                      disabled={!canGenerateAgreement}
+                      onClick={() => handleAgreementBuilderAction('Generate Agreement')}
+                      type="button"
+                    >
+                      {agreementGenerated ? 'Regenerate Agreement' : 'Generate Agreement'}
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               {isAgreementBuilderPage && agreementGenerated ? (
                 <section className="section-card agreement-preview-section">
                   <div className="section-head agreement-preview-head">
                     <div>
                       <h3>{page.agreementPreview.title}</h3>
-                      <p>合同已生成。请先完成在线预览，再发送给 Client Review。</p>
-                    </div>
-                    <div className="agreement-preview-actions">
-                      <button className="action-button is-secondary" onClick={() => handleAgreementBuilderAction('Generate Agreement')} type="button">
-                        Regenerate Agreement
-                      </button>
-                      <button className="action-button is-primary" type="button">
-                        Send for Review
-                      </button>
+                      <p>
+                        合同已生成。请先完成在线预览，再从页面右下角发送给 Client Review。
+                      </p>
                     </div>
                   </div>
 
@@ -3489,7 +3512,7 @@ function App() {
                   </div>
 
                   <div className="agreement-preview-sheet">
-                    {page.agreementPreview.sections.map((section) => (
+                    {agreementPreviewSections.map((section) => (
                       <section className="agreement-preview-block" key={section.heading}>
                         <h4>{section.heading}</h4>
                         <p>{section.body}</p>
@@ -4013,6 +4036,35 @@ function App() {
                 {action}
               </button>
             ))}
+          </div>
+        ) : null}
+
+        {isAgreementBuilderPage ? (
+          <div className="agreement-global-action-bar" role="region" aria-label="Agreement review action">
+            <div className="agreement-global-action-copy">
+              <strong>
+                {agreementSentForReview
+                  ? 'Agreement has been sent for review.'
+                  : agreementGenerated
+                    ? 'Agreement preview is ready for client review.'
+                    : 'Generate the agreement to enable client review.'}
+              </strong>
+              <span>
+                {agreementSentForReview
+                  ? 'The latest generated agreement is already in the review flow.'
+                  : agreementGenerated
+                    ? 'Use this page-level action after you finish checking the preview.'
+                    : 'Send for Review stays disabled until a clean generated preview is available.'}
+              </span>
+            </div>
+            <button
+              className={`action-button ${agreementSentForReview ? 'is-secondary' : 'is-primary'}`}
+              disabled={!canSendAgreementForReview}
+              onClick={() => handleAgreementBuilderAction('Send for Review')}
+              type="button"
+            >
+              {agreementSentForReview ? 'Sent for Review' : 'Send for Review'}
+            </button>
           </div>
         ) : null}
 
