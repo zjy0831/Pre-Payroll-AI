@@ -108,13 +108,11 @@ COR 在 Butter 中的目标态应定义为：
 flowchart TB
   S([Start]) --> A111["1.1.1 Client<br/>Place order for new contractor"]
   A111 --> A112["1.1.2 BIPO<br/>Confirm order and send email to collect details"]
-  A112 --> A113["1.1.3 BIPO<br/>Send collect info. of contractor"]
-  A113 --> A114["1.1.4 Contractor<br/>Fill in information collection form"]
+  A112 --> A114["1.1.4 Contractor<br/>Fill in information collection form"]
   A114 --> A115["1.1.5 BIPO<br/>Review contractor info"]
   A115 -->|Info missing| A114
-  A115 -->|Pass| A121P["1.2.1 BIPO<br/>Prepare independent contractor agreement"]
-  A121P --> A121S["1.2.1 BIPO<br/>Send the drafted agreement"]
-  A121S --> A122["1.2.2 Client<br/>Review and send the agreement"]
+  A115 -->|Pass| A121P["1.2.1 BIPO<br/>Create Agreement & Send to Client"]
+  A121P --> A122["1.2.2 Client<br/>Review and send the agreement"]
   A122 -->|Accept| A132["1.3.2 Contractor<br/>Sign via DocuSign"]
   A122 -->|Amend| A121P
   A132 -->|Signed| A133["1.3.3 BIPO<br/>Accept signed agreement"]
@@ -122,7 +120,6 @@ flowchart TB
   A134 --> E([End])
   A132 -->|Rejected| A135{"1.3.5 Client Decision"}
   A135 -->|Amend agreement| A121P
-  A135 -->|Proceed existing agreement| A132
   A135 -->|End agreement| E
 ```
 
