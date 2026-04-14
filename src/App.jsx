@@ -156,6 +156,22 @@ function getFilterOptions(rows, key) {
   return [...new Set(rows.map((row) => normalizeRow(row).filterMeta?.[key]).filter(Boolean))]
 }
 
+function getRequestActivityAction(page, item) {
+  const requestOverview = page.requestOverview
+
+  if (
+    requestOverview?.viewerName &&
+    requestOverview?.currentPendingTaskAssignee &&
+    requestOverview?.currentPendingTaskId &&
+    item.taskId === requestOverview.currentPendingTaskId &&
+    requestOverview.viewerName === requestOverview.currentPendingTaskAssignee
+  ) {
+    return { label: 'Process', tone: 'is-primary' }
+  }
+
+  return { label: item.taskEntryLabel ?? 'View Task Detail', tone: 'is-ghost' }
+}
+
 function renderCellContent(cell) {
   if (typeof cell !== 'object' || cell === null) {
     return cell
@@ -201,6 +217,33 @@ function getTableCellClass(column, cell, row, index) {
 
 function supportsIssueTooltip(cell) {
   return !(typeof cell === 'object' && cell !== null && cell.kind === 'action-set')
+}
+
+function createAgreementDetailRow(id, item = '', detail = '') {
+  return { id, item, detail }
+}
+
+function getAgreementDetailRowsFromPage(page) {
+  const section = page.workspaceSections?.find((item) => item.title === 'Additional Key Details')
+
+  if (!section?.rows?.length) {
+    return []
+  }
+
+  return section.rows.map((row, index) => {
+    const normalizedRow = normalizeRow(row)
+    const [item = '', detail = ''] = normalizedRow.cells ?? []
+
+    return createAgreementDetailRow(
+      `${page.id}-agreement-detail-${index}`,
+      typeof item === 'string' ? item : '',
+      typeof detail === 'string' ? detail : ''
+    )
+  })
+}
+
+function isAgreementDetailRowComplete(row) {
+  return row.item.trim() !== '' && row.detail.trim() !== ''
 }
 
 const prePayrollPages = [
@@ -2252,7 +2295,197 @@ const prePayrollPages = [
   },
 ]
 
-const requestPages = []
+const requestPages = [
+  {
+    id: 'request-eor-payroll-overview',
+    layout: 'request-overview',
+    phase: 'Requests / EOR',
+    title: 'EOR Payroll Request',
+    accent: 'request',
+    status: 'Pending Task',
+    stats: [
+      ['Request ID', '202604081501249800'],
+      ['Current Stage', 'Payroll Internal Data Review'],
+      ['Pending Task', 'Confirm Payroll Internal Data'],
+      ['Assignee', 'Selena Zhang'],
+    ],
+    currentView: {
+      title: 'Request Overview',
+      caption: 'Overview page does not host task operations directly.',
+      columns: [],
+      rows: [],
+      stickyLastColumn: false,
+    },
+    tables: [],
+    ai: {
+      executiveSummary: 'The request is waiting for the current pending task to be completed in Task Workspace.',
+      outputs: [],
+      quickActions: [],
+      rules: [],
+      anomalies: [],
+      actions: ['Go to Task Workspace', 'Refresh Request', 'Open Request Chat'],
+    },
+    requestOverview: {
+      viewerName: 'Selena Zhang',
+      currentPendingTaskId: 'T-1.3.4',
+      currentPendingTaskAssignee: 'Selena Zhang',
+      progressItems: [
+        {
+          shortLabel: 'Initiated',
+          title: 'Request initiated',
+          owner: 'Client',
+          status: 'done',
+          date: '2026-04-08 15:04',
+          detail: 'Payroll request was created and routed to EOR delivery.',
+        },
+        {
+          shortLabel: 'Verification',
+          title: 'Employee verification confirmed',
+          owner: 'SD / Delivery',
+          status: 'done',
+          date: '2026-04-10 10:33',
+          detail: 'Employee scope and master data verification were completed.',
+        },
+        {
+          shortLabel: 'Attendance',
+          title: 'Leave & attendance confirmed',
+          owner: 'SD / Delivery',
+          status: 'done',
+          date: '2026-04-12 10:31',
+          detail: 'Attendance package is aligned with current payroll period.',
+        },
+        {
+          shortLabel: 'Internal Review',
+          title: 'Payroll internal data review',
+          owner: 'Selena Zhang',
+          status: 'current',
+          date: 'In progress',
+          detail: 'Current pending task. Use Task Workspace to confirm or return.',
+        },
+        {
+          shortLabel: 'Freeze',
+          title: 'Payroll package freeze',
+          owner: 'Payroll Ops',
+          status: 'upcoming',
+          date: 'After current task',
+          detail: 'Triggered once the current review task is completed.',
+        },
+      ],
+      aiInsights: {
+        summary:
+          'AI sees this request as structurally ready for freeze, but still blocked by payroll internal source confirmation. The remaining work is narrow and should stay inside the current pending task.',
+        findings: [
+          {
+            label: 'Status',
+            tone: 'status',
+            marker: 'Stable',
+            title: 'Current package scope is already stable',
+            detail: 'Mar 2026 payroll package covers 664 employees. Employee verification and leave reconciliation were already completed in earlier tasks.',
+            tags: ['Payroll period: 2026-03-01 to 2026-03-31', 'Legal entity: BIPO SG Services', 'Market: Singapore'],
+          },
+          {
+            label: 'Risk',
+            tone: 'risk',
+            marker: 'Needs Attention',
+            title: '2 blockers still open',
+            detail: 'One source refresh is still pending and one internal note still needs reconfirmation before the package can move to freeze.',
+            tags: ['Payroll interface source file not refreshed', 'Payroll internal note waiting reconfirmation'],
+          },
+          {
+            label: 'Handoff',
+            tone: 'handoff',
+            marker: 'Latest Note',
+            title: 'Latest reviewer note points to source version control',
+            detail: 'The previous delivery owner asked the payroll reviewer to confirm the latest source version before package freeze.',
+            tags: ['Last updated by SD on 2026-04-13 17:24', 'Follow-up expected from payroll reviewer'],
+          },
+          {
+            label: 'Impact',
+            tone: 'impact',
+            marker: 'Downstream Effect',
+            title: 'Freeze is waiting on this review',
+            detail: 'Until the pending task is closed in Task Workspace, downstream payroll freeze and final handoff should not proceed.',
+            tags: ['Affects run-level readiness', 'May impact payroll cut-off communication'],
+          },
+        ],
+      },
+      activityItems: [
+        {
+          tone: 'current',
+          time: '2026-04-13 17:24',
+          actor: 'SD - Mikhael-hsue_hsu',
+          title: 'Handed over to payroll internal review',
+          detail: 'Left note asking payroll reviewer to confirm the latest source version before package freeze.',
+          dueAlert: {
+            level: 'warning',
+            title: 'Due soon',
+            detail: 'This pending task is due at 2026-04-14 18:00. Complete the review soon to avoid delaying payroll freeze.',
+          },
+          taskId: 'T-1.3.4',
+          taskEntryLabel: 'View Task Detail',
+        },
+        {
+          tone: 'ok',
+          time: '2026-04-12 10:31',
+          actor: 'SD - Selena Zhang',
+          title: 'Leave & Attendance data confirmed',
+          detail: 'Attendance and leave package were confirmed against the current period.',
+          taskId: 'T-1.3.3',
+          taskEntryLabel: 'View Task Detail',
+        },
+        {
+          tone: 'ok',
+          time: '2026-04-10 10:33',
+          actor: 'SD - Selena Zhang',
+          title: 'Employee verification confirmed',
+          detail: 'Employee population for this payroll run was locked for review.',
+          taskId: 'T-1.3.2',
+          taskEntryLabel: 'View Task Detail',
+        },
+      ],
+      infoTabs: [
+        {
+          id: 'request-information',
+          label: 'Request Information',
+          title: 'Request Information',
+          type: 'meta',
+          items: [
+            ['Request ID', '202604081501249800'],
+            ['Service', 'EOR Payroll'],
+            ['Market', 'Singapore'],
+            ['Client', 'DEMO03 / DEMO03'],
+            ['Create Time', '2026-04-08 15:04:22'],
+          ],
+        },
+        {
+          id: 'pay-period-information',
+          label: 'Pay Period Information',
+          title: 'Pay Period Information',
+          type: 'meta',
+          items: [
+            ['Pay Period', 'Mar 2026'],
+            ['Start Date', '2026-03-01'],
+            ['End Date', '2026-03-31'],
+            ['Cut-off', '2026-04-14 18:00'],
+            ['Employee Scope', '664 employees'],
+          ],
+        },
+        {
+          id: 'documents',
+          label: 'Documents',
+          title: 'Documents',
+          type: 'documents',
+          items: [
+            ['Payroll internal source', 'payroll_internal_data_mar_2026.xlsx'],
+            ['Leave reconciliation', 'leave_reconciliation_mar_2026.xlsx'],
+            ['Employee verification snapshot', 'employee_scope_snapshot_mar_2026.pdf'],
+            ['Payroll interface export', 'payroll_interface_source_mar_2026.csv'],
+          ],
+        },
+      ],
+    },
+  },
+]
 const corPages = [
   {
     id: 'cor-task-collect-info',
@@ -2767,15 +3000,6 @@ const corPages = [
           ['Handoff', 'Proceed to agreement generation'],
         ],
       },
-      {
-        title: 'Integration Status',
-        items: [
-          ['Provider', 'Butter Contract Engine'],
-          ['Retrieval Status', 'Butter data ready'],
-          ['Last Generate Time', '-'],
-          ['Last Error', '-'],
-        ],
-      },
     ],
     aiPanel: {
       suggestions: ['必填字段已完整，可直接点击 Generate Agreement 进入在线预览。'],
@@ -2843,128 +3067,6 @@ const corPages = [
       ],
     },
   },
-  {
-    id: 'cor-task-review-signed-contract',
-    phase: 'COR Task Detail',
-    title: 'Review Signed Contract',
-    status: 'Review Pending',
-    accent: 'post',
-    subtitle: '审签任务聚焦签署结果、合同版本一致性和归档确认，决定是否进入下一交付节点。',
-    stats: [
-      ['Assignee', 'SD'],
-      ['Due Date', '2026-04-11'],
-      ['Remind Date', '2026-04-10'],
-      ['Task ID', 'COR-T7'],
-    ],
-    taskGoal: '确认签署完整性与归档状态，确保审计链路闭环后再完成任务。',
-    taskActions: ['Refresh from DocuSign', 'Upload Archive Proof', 'Mark Task Complete'],
-    workspaceSections: [
-      {
-        title: 'Signature Status',
-        caption: '按 signer 展示签署时间和状态，作为任务主决策依据。',
-        type: 'table',
-        columns: ['Level', 'Signer', 'Email', 'Signed Date', 'Status'],
-        rows: [
-          ['1', 'Bo Li Cheng', 'nancy.pan@biposervice.com', '2026-04-08 15:29:54', 'Completed'],
-          ['2', 'Muller Hans', 'hans.m@protonmail.de', '2026-04-08 15:30:45', 'Completed'],
-        ],
-      },
-      {
-        title: 'Review Checklist',
-        caption: '签署完成后的必检项，确保任务可安全关闭。',
-        type: 'table',
-        columns: ['Checklist Item', 'Current Status', 'Evidence', 'Decision'],
-        rows: [
-          ['All required signers completed', 'Pass', '2 / 2 completed', 'Accept'],
-          ['Document version consistency', 'Pass', 'v2026.04.09 matched', 'Accept'],
-          ['Archive confirmation', 'Pending', 'Archive receipt missing', 'Hold'],
-        ],
-      },
-      {
-        title: 'Review Decision Area',
-        caption: '执行动作前先确认审查结论。',
-        type: 'cards',
-        items: [
-          { label: 'Current Conclusion', value: 'Cannot close yet', tone: 'warning' },
-          { label: 'Blocking Item', value: 'Archive confirmation pending', tone: 'critical' },
-          { label: 'Recommended Action', value: 'Upload archive proof', tone: 'ok' },
-        ],
-      },
-    ],
-    contextPanels: [
-      {
-        title: 'Task Information',
-        items: [
-          ['Task ID', 'COR-T7'],
-          ['Request ID', '202604081501249800'],
-          ['Task Type', 'review_signed_contract'],
-          ['Workflow', 'COR-NC-v1'],
-        ],
-      },
-      {
-        title: 'Request Summary',
-        items: [
-          ['Service', 'COR / New Contractor'],
-          ['Location', 'Germany'],
-          ['Contractor', 'Muller Hans'],
-          ['Create Time', '2026-04-08 15:31:46'],
-        ],
-      },
-          {
-            title: 'Previous Task Outcome',
-            items: [
-              ['Task', 'Create Agreement & Send to Client'],
-              ['Status', 'Done'],
-              ['Result', 'Agreement sent to client review'],
-              ['Handoff', 'Proceed to review'],
-            ],
-          },
-    ],
-    aiPanel: {
-      suggestions: ['先补齐归档凭证，再关闭当前任务。'],
-      risks: ['若未归档直接关闭，审计链路会出现缺口。'],
-      missing: ['Archive confirmation receipt'],
-      nextActions: ['点击 Upload Archive Proof，完成后再 Mark Task Complete。'],
-    },
-    tabs: ['Task Workspace'],
-    activeTab: 'Task Workspace',
-    currentView: {
-      title: 'Task Workspace',
-      caption: '审签任务按签署状态与审核清单布局，替代原始模板堆叠。',
-      columns: ['Review Dimension', 'Result', 'State'],
-      rows: [
-        ['Signer Completion', '2 / 2 completed', 'Pass'],
-        ['Version Consistency', 'v2026.04.09 matched', 'Pass'],
-        ['Archive Confirmation', 'Receipt missing', 'Pending'],
-      ],
-    },
-    tables: [],
-    ai: {
-      executiveSummary: '签署状态已完成，当前阻塞项为归档确认缺失。',
-      outputs: [['Signature status', '2'], ['Review checklist', '3']],
-      quickActions: ['Refresh from DocuSign', 'Upload Archive Proof'],
-      rules: [
-        ['Signer Completion', 'Pass', 'All required signers are completed'],
-        ['Version Consistency', 'Pass', 'Document version is matched'],
-        ['Archive Confirmation', 'Warning', 'Archive proof still pending'],
-      ],
-      anomalies: [
-        {
-          id: 'cor-review-checklist',
-          severity: 'warning',
-          summary: '归档确认未完成，建议补齐凭证后再结束任务。',
-          outputs: ['Review checklist'],
-          aiRecommendation: 'Upload archive proof before closing task.',
-          quickActions: ['Upload Archive Proof'],
-          title: 'Archive Pending',
-          detail: 'Archive receipt missing',
-          impact: 'Audit trace incomplete',
-          recommendation: 'Complete archive confirmation first',
-        },
-      ],
-      actions: ['Save Draft', 'Upload Archive Proof', 'Mark Task Complete'],
-    },
-  },
 ]
 
 function App() {
@@ -2975,6 +3077,7 @@ function App() {
   const [activeSeverity, setActiveSeverity] = useState('all')
   const [activeTab, setActiveTab] = useState(allPages[0].activeTab ?? allPages[0].tabs?.[0] ?? null)
   const [activeSubTab, setActiveSubTab] = useState(null)
+  const [activeRequestInfoTab, setActiveRequestInfoTab] = useState(requestPages[0]?.requestOverview?.infoTabs?.[0]?.id ?? null)
   const [activeFormGroup, setActiveFormGroup] = useState(allPages[0].formGroups?.[0]?.id ?? null)
   const [activeFieldKey, setActiveFieldKey] = useState(allPages[0].formGroups?.[0]?.fields?.[0]?.key ?? null)
   const [activeContextModalTitle, setActiveContextModalTitle] = useState(null)
@@ -2983,6 +3086,13 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({ prePayroll: true, cor: true, requests: true })
   const [generatedAgreementPages, setGeneratedAgreementPages] = useState({})
   const [reviewRequestedAgreementPages, setReviewRequestedAgreementPages] = useState({})
+  const [agreementDetailRows, setAgreementDetailRows] = useState(() => {
+    return allPages.reduce((acc, page) => {
+      acc[page.id] = getAgreementDetailRowsFromPage(page)
+      return acc
+    }, {})
+  })
+
   const page = allPages.find((item) => item.id === activePage) ?? allPages[0]
   const currentTab = activeTab ?? page.activeTab ?? page.tabs?.[0] ?? null
   const currentSubTabs = getCurrentSubTabs(page, currentTab)
@@ -3023,9 +3133,22 @@ function App() {
   const isAgreementBuilderPage = page.id === 'cor-task-create-agreement-send-client'
   const agreementGenerated = Boolean(generatedAgreementPages[page.id])
   const agreementSentForReview = Boolean(reviewRequestedAgreementPages[page.id])
-  const canGenerateAgreement = true
-  const canSendAgreementForReview = agreementGenerated && !agreementSentForReview
+  const currentPageAgreementDetailRows = agreementDetailRows[page.id] ?? []
+  const hasIncompleteAgreementDetails = currentPageAgreementDetailRows.some((row) => !isAgreementDetailRowComplete(row))
+
+  const canGenerateAgreement =
+    isAgreementBuilderPage &&
+    !hasIncompleteAgreementDetails &&
+    page.formGroups?.every((group) => group.fields.every((field) => !field.required || (field.value && field.value !== 'Not provided')))
+
+  const agreementNeedsRegeneration = false
+
+  const canSendAgreementForReview = isAgreementBuilderPage && agreementGenerated && !agreementNeedsRegeneration && !agreementSentForReview
   const agreementPreviewSections = isAgreementBuilderPage ? (page.agreementPreview?.sections ?? []) : []
+  const isRequestOverviewPage = page.layout === 'request-overview'
+  const currentRequestInfoTabs = isRequestOverviewPage ? page.requestOverview?.infoTabs ?? [] : []
+  const currentRequestInfoPanel =
+    currentRequestInfoTabs.find((tab) => tab.id === activeRequestInfoTab) ?? currentRequestInfoTabs[0] ?? null
   const displayedReadinessItems =
     isAgreementBuilderPage && readinessSection?.type === 'cards'
       ? readinessSection.items.map((item) => {
@@ -3046,6 +3169,7 @@ function App() {
     setActiveSeverity('all')
     setActiveTab(item.activeTab ?? item.tabs?.[0] ?? null)
     setActiveSubTab(item.subTabsByTab?.[item.activeTab ?? item.tabs?.[0] ?? null]?.[0] ?? null)
+    setActiveRequestInfoTab(item.requestOverview?.infoTabs?.[0]?.id ?? null)
     setActiveFormGroup(item.formGroups?.[0]?.id ?? null)
     setActiveFieldKey(item.formGroups?.[0]?.fields?.[0]?.key ?? null)
     setActiveContextModalTitle(null)
@@ -3073,6 +3197,36 @@ function App() {
 
   const toggleSidebarGroup = (groupKey) => {
     setExpandedGroups((current) => ({ ...current, [groupKey]: !current[groupKey] }))
+  }
+
+  const addAgreementDetailRow = () => {
+    setAgreementDetailRows((current) => {
+      const currentRows = current[page.id] ?? []
+      return {
+        ...current,
+        [page.id]: [...currentRows, createAgreementDetailRow(`${page.id}-agreement-detail-new-${Date.now()}`)],
+      }
+    })
+  }
+
+  const removeAgreementDetailRow = (rowId) => {
+    setAgreementDetailRows((current) => {
+      const currentRows = current[page.id] ?? []
+      return {
+        ...current,
+        [page.id]: currentRows.filter((row) => row.id !== rowId),
+      }
+    })
+  }
+
+  const updateAgreementDetailRow = (rowId, field, value) => {
+    setAgreementDetailRows((current) => {
+      const currentRows = current[page.id] ?? []
+      return {
+        ...current,
+        [page.id]: currentRows.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
+      }
+    })
   }
 
   useEffect(() => {
@@ -3123,7 +3277,7 @@ function App() {
       <aside className="prototype-sidebar">
         <div className="sidebar-brand">
           <span className="sidebar-eyebrow">Butter Prototype</span>
-          <h1>Pre-Payroll AI</h1>
+          <h1>Butter AI</h1>
         </div>
 
         <div className="sidebar-group">
@@ -3230,7 +3384,7 @@ function App() {
         </div>
       </aside>
 
-      <main className={`prototype-main accent-${page.accent} ${isAgreementBuilderPage ? 'has-floating-action' : ''}`.trim()}>
+      <main className={`prototype-main accent-${page.accent}`.trim()}>
         <header className="page-header">
           <div className={`status-badge status-${page.accent}`}>{page.status}</div>
           
@@ -3247,7 +3401,7 @@ function App() {
               <h2>{page.title}</h2>
             </div>
             
-            {!page.id.startsWith('cor-task-') && (
+            {!page.id.startsWith('cor-task-') && !isRequestOverviewPage && (
               <div className="header-metrics-row">
                 {page.stats.map(([label, value]) => (
                   <div className="mini-stat" key={label}>
@@ -3257,6 +3411,25 @@ function App() {
                 ))}
               </div>
             )}
+
+            {isRequestOverviewPage ? (
+              <section className="request-header-progress" aria-label="Request progress summary">
+                <div className="request-header-progress-top">
+                  <span className="section-eyebrow">Progress Snapshot</span>
+                </div>
+                <div className="request-header-progress-track">
+                  {page.requestOverview.progressItems.map((item, index) => (
+                    <div className={`request-header-progress-step is-${item.status}`} key={`${item.shortLabel}-${index}`}>
+                      <div className="request-header-progress-node" aria-hidden="true" />
+                      <div className="request-header-progress-copy">
+                        <strong>{item.shortLabel ?? item.title}</strong>
+                        <span>{item.status === 'current' ? 'Current' : item.status === 'done' ? 'Done' : 'Upcoming'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {page.id.startsWith('cor-task-') && topContextPanels.length ? (
               <section className="cor-header-panels" aria-label="Task and request summary">
@@ -3412,7 +3585,16 @@ function App() {
                 <section className="section-card" key={section.title}>
                   <div className="section-head">
                     <h3>{section.title}</h3>
-                    <p>{section.caption}</p>
+                    {section.type === 'agreementDetailsEditor' ? (
+                      <div className="agreement-details-subhead">
+                        <p className="agreement-details-caption">{section.caption}</p>
+                        <button className="action-button is-ghost agreement-details-add-top" onClick={addAgreementDetailRow} type="button">
+                          +Add
+                        </button>
+                      </div>
+                    ) : (
+                      <p>{section.caption}</p>
+                    )}
                   </div>
                   {section.type === 'cards' ? (
                     <div className="cor-workspace-cards">
@@ -3426,23 +3608,63 @@ function App() {
                   ) : section.type === 'formGrid' ? (
                     <div className="cor-form-grid">
                       {section.items.map((item) => (
-                        <article
-                          className={`cor-form-field tone-${item.tone ?? 'neutral'} ${item.span === 'full' ? 'is-full' : ''}`.trim()}
-                          key={`${section.title}-${item.label}`}
-                        >
-                          <div className="cor-form-field-head">
-                            <span className="cor-form-label">
-                              {item.required ? <em>*</em> : null}
-                              {item.label}
-                            </span>
-                          </div>
-                          <div className={`cor-form-value ${item.value === 'Not provided' ? 'is-empty' : ''}`}>{item.value}</div>
-                        </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="table-shell compact-table">
-                      <table>
+                    <article
+                      className={`cor-form-field tone-${item.tone ?? 'neutral'} ${item.span === 'full' ? 'is-full' : ''}`.trim()}
+                      key={`${section.title}-${item.label}`}
+                    >
+                      <div className="cor-form-field-head">
+                        <span className="cor-form-label">
+                          {item.required ? <em>*</em> : null}
+                          {item.label}
+                        </span>
+                      </div>
+                      <div className={`cor-form-value ${item.value === 'Not provided' ? 'is-empty' : ''}`}>{item.value}</div>
+                    </article>
+                  ))}
+                </div>
+              ) : section.type === 'agreementDetailsEditor' ? (
+                <div className="agreement-details-editor">
+                  <div className="agreement-details-header">
+                    <span>Item</span>
+                    <span>Detail</span>
+                    <span>Action</span>
+                  </div>
+                  <div className="agreement-details-list">
+                    {currentPageAgreementDetailRows.map((row) => (
+                      <div className="agreement-details-row" key={row.id}>
+                        <input
+                          aria-label="Agreement detail item"
+                          className="agreement-details-input"
+                          onChange={(event) => updateAgreementDetailRow(row.id, 'item', event.target.value)}
+                          placeholder="Enter item"
+                          type="text"
+                          value={row.item}
+                        />
+                        <textarea
+                          aria-label="Agreement detail value"
+                          className="agreement-details-textarea"
+                          onChange={(event) => updateAgreementDetailRow(row.id, 'detail', event.target.value)}
+                          placeholder="Enter detail"
+                          rows={2}
+                          value={row.detail}
+                        />
+                        <button className="action-button is-ghost agreement-details-delete" onClick={() => removeAgreementDetailRow(row.id)} type="button">
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="agreement-details-footer">
+                    <p className="agreement-details-hint">
+                      {hasIncompleteAgreementDetails
+                        ? '新增行后需填写完整 Item 和 Detail，或删除该行，才能生成合同。'
+                        : 'Additional Key Details 已准备就绪，可继续生成合同。'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="table-shell compact-table">
+                  <table>
                         <thead>
                           <tr>
                             {section.columns.map((column) => (
@@ -3467,22 +3689,16 @@ function App() {
               ))}
 
               {isAgreementBuilderPage ? (
-                <section className="section-card agreement-generate-section">
-                  <div className="section-head agreement-generate-head">
-                    <div>
-                      <h3>Agreement Generation</h3>
-                      <p>Generate agreement after required fields are complete.</p>
-                    </div>
-                    <button
-                      className={`action-button ${getAgreementBuilderActionTone('Generate Agreement', agreementGenerated)}`}
-                      disabled={!canGenerateAgreement}
-                      onClick={() => handleAgreementBuilderAction('Generate Agreement')}
-                      type="button"
-                    >
-                      {agreementGenerated ? 'Regenerate Agreement' : 'Generate Agreement'}
-                    </button>
-                  </div>
-                </section>
+                <div className="agreement-generate-cta">
+                  <button
+                    className={`action-button ${getAgreementBuilderActionTone('Generate Agreement', agreementGenerated)}`}
+                    disabled={!canGenerateAgreement}
+                    onClick={() => handleAgreementBuilderAction('Generate Agreement')}
+                    type="button"
+                  >
+                    {agreementGenerated ? 'Regenerate Agreement' : 'Generate Agreement'}
+                  </button>
+                </div>
               ) : null}
 
               {isAgreementBuilderPage && agreementGenerated ? (
@@ -3584,6 +3800,129 @@ function App() {
             </aside>
           </div>
           </>
+        ) : isRequestOverviewPage ? (
+        <div className="request-overview-layout">
+          <section className="primary-column">
+            <section className="section-card request-insights-panel">
+              <div className="section-head compact">
+                <h3>AI Insights</h3>
+                <p className="request-insights-summary">{page.requestOverview.aiInsights.summary}</p>
+              </div>
+              <div className="request-insights-list" aria-label="AI analysis findings">
+                {page.requestOverview.aiInsights.findings.map((item) => (
+                  <article className={`request-insight-item tone-${item.tone ?? 'neutral'}`} key={item.title}>
+                    <div className="request-insight-head">
+                      <span className="request-block-label">{item.label}</span>
+                      {item.marker ? <span className="request-insight-marker">{item.marker}</span> : null}
+                      <h4>{item.title}</h4>
+                    </div>
+                    <p className="request-insight-detail">{item.detail}</p>
+                    {item.tags?.length ? (
+                      <div className="request-insight-tags">
+                        {item.tags.map((tag) => (
+                          <span className="request-insight-tag" key={tag}>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="section-card request-facts-panel">
+              <div className="section-head compact">
+                <div className="section-title-block">
+                  <h3>Request Workspace</h3>
+                  <p className="section-eyebrow">Browse request facts, pay period details, attached documents, and request chat.</p>
+                </div>
+              </div>
+              <div className="tab-row request-tab-row" aria-label="Request workspace tabs" role="tablist">
+                {currentRequestInfoTabs.map((tab) => (
+                  <button
+                    aria-selected={currentRequestInfoPanel?.id === tab.id}
+                    className={`tab-pill ${currentRequestInfoPanel?.id === tab.id ? 'is-active' : ''}`}
+                    key={tab.id}
+                    onClick={() => setActiveRequestInfoTab(tab.id)}
+                    role="tab"
+                    type="button"
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              {currentRequestInfoPanel?.type === 'meta' ? (
+                <section className="request-facts-card">
+                  <span className="request-block-label">{currentRequestInfoPanel.title}</span>
+                  <dl className="request-meta-grid">
+                    {currentRequestInfoPanel.items.map(([label, value]) => (
+                      <div className="request-meta-item" key={`${currentRequestInfoPanel.title}-${label}`}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              ) : null}
+              {currentRequestInfoPanel?.type === 'documents' ? (
+                <section className="request-facts-card">
+                  <span className="request-block-label">{currentRequestInfoPanel.title}</span>
+                  <div className="request-document-list">
+                    {currentRequestInfoPanel.items.map(([label, value]) => (
+                      <article className="request-document-item" key={`${label}-${value}`}>
+                        <div>
+                          <h4>{value}</h4>
+                          <p>{label}</p>
+                        </div>
+                        <button className="action-button is-ghost" type="button">
+                          View
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </section>
+
+            <section className="section-card request-activity-panel">
+              <div className="section-head">
+                <h3>Recent Activity</h3>
+                <p>Only the latest milestones are shown by default. The full timeline should live behind a secondary entry.</p>
+              </div>
+              <div className="request-activity-list">
+                {page.requestOverview.activityItems.map((item) => (
+                  <article className={`request-activity-item tone-${item.tone}`} key={`${item.time}-${item.title}`}>
+                    <div className="request-activity-time">
+                      <strong>{item.time}</strong>
+                      <span>{item.actor}</span>
+                    </div>
+                    <div className="request-activity-body">
+                      <h4>{item.title}</h4>
+                      <p>{item.detail}</p>
+                      {item.dueAlert ? (
+                        <div className={`request-activity-alert tone-${item.dueAlert.level ?? 'warning'}`}>
+                          <strong>{item.dueAlert.title}</strong>
+                          <span>{item.dueAlert.detail}</span>
+                        </div>
+                      ) : null}
+                      <div className="request-activity-actions">
+                        <button className={`action-button ${getRequestActivityAction(page, item).tone}`} type="button">
+                          {getRequestActivityAction(page, item).label}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="request-activity-footer">
+                <button className="action-button is-ghost" type="button">
+                  View Full Timeline
+                </button>
+              </div>
+            </section>
+          </section>
+        </div>
         ) : (
         <div className="content-grid">
 	          <section className="primary-column">
@@ -4025,48 +4364,19 @@ function App() {
         </div>
         )}
         
-        {!isAgreementBuilderPage ? (
-          <div className="page-footer-actions">
-            {page.ai.actions.map((action, index) => (
-              <button
-                key={action}
-                className={`action-button ${getActionTone(action, index, page.ai.actions)}`}
-                type="button"
-              >
-                {action}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {isAgreementBuilderPage ? (
-          <div className="agreement-global-action-bar" role="region" aria-label="Agreement review action">
-            <div className="agreement-global-action-copy">
-              <strong>
-                {agreementSentForReview
-                  ? 'Agreement has been sent for review.'
-                  : agreementGenerated
-                    ? 'Agreement preview is ready for client review.'
-                    : 'Generate the agreement to enable client review.'}
-              </strong>
-              <span>
-                {agreementSentForReview
-                  ? 'The latest generated agreement is already in the review flow.'
-                  : agreementGenerated
-                    ? 'Use this page-level action after you finish checking the preview.'
-                    : 'Send for Review stays disabled until a clean generated preview is available.'}
-              </span>
-            </div>
+        <div className="page-footer-actions">
+          {(isAgreementBuilderPage ? ['Send for Review'] : page.ai.actions).map((action, index, actions) => (
             <button
-              className={`action-button ${agreementSentForReview ? 'is-secondary' : 'is-primary'}`}
-              disabled={!canSendAgreementForReview}
-              onClick={() => handleAgreementBuilderAction('Send for Review')}
+              key={action}
+              className={`action-button ${getActionTone(action, index, actions)}`}
+              disabled={isAgreementBuilderPage && action === 'Send for Review' ? !canSendAgreementForReview : false}
+              onClick={isAgreementBuilderPage && action === 'Send for Review' ? () => handleAgreementBuilderAction('Send for Review') : undefined}
               type="button"
             >
-              {agreementSentForReview ? 'Sent for Review' : 'Send for Review'}
+              {isAgreementBuilderPage && action === 'Send for Review' ? (agreementSentForReview ? 'Sent for Review' : 'Send for Review') : action}
             </button>
-          </div>
-        ) : null}
+          ))}
+        </div>
 
         {activeContextModalPanel ? (
           <div className="cor-modal-backdrop" onClick={() => setActiveContextModalTitle(null)} role="presentation">
