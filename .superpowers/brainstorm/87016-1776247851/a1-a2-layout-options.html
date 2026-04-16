@@ -1,0 +1,368 @@
+<style>
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .design-note {
+    margin: 10px 0 18px;
+    color: #5b6472;
+    font-size: 14px;
+  }
+
+  .mini-app {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 420px;
+    background: linear-gradient(180deg, #fafbfc 0%, #f2f5f8 100%);
+    border: 1px solid #d9e2ec;
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .mini-header {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 0.6fr;
+    gap: 10px;
+  }
+
+  .chip-row,
+  .metric-row,
+  .tab-row,
+  .group-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chip,
+  .metric,
+  .tab,
+  .group,
+  .row,
+  .drawer-card {
+    border-radius: 12px;
+    border: 1px solid #d7dee7;
+    background: #fff;
+  }
+
+  .chip,
+  .tab,
+  .group {
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .metric {
+    padding: 10px 12px;
+    min-width: 92px;
+  }
+
+  .metric strong {
+    display: block;
+    font-size: 18px;
+    color: #17202d;
+  }
+
+  .metric span {
+    color: #6b7380;
+    font-size: 11px;
+  }
+
+  .tab.active,
+  .group.active {
+    background: #17202d;
+    border-color: #17202d;
+    color: #fff;
+  }
+
+  .list-shell {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .list-panel,
+  .drawer-panel,
+  .summary-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .row {
+    padding: 10px 12px;
+  }
+
+  .row strong {
+    display: block;
+    font-size: 13px;
+    color: #17202d;
+    margin-bottom: 4px;
+  }
+
+  .row span {
+    font-size: 11px;
+    color: #6a7381;
+  }
+
+  .row.blocker {
+    border-left: 4px solid #d64545;
+  }
+
+  .row.warning {
+    border-left: 4px solid #e39c28;
+  }
+
+  .row.info {
+    border-left: 4px solid #4b7bec;
+  }
+
+  .drawer-card {
+    padding: 10px 12px;
+  }
+
+  .drawer-card h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+  }
+
+  .drawer-card p,
+  .drawer-card li {
+    margin: 0;
+    font-size: 11px;
+    color: #657080;
+  }
+
+  .drawer-card ul {
+    margin: 0;
+    padding-left: 16px;
+  }
+
+  .decision-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .decision {
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 11px;
+    border: 1px solid #d7dee7;
+    background: #fff;
+  }
+
+  .decision.primary {
+    background: #17202d;
+    color: #fff;
+    border-color: #17202d;
+  }
+
+  .compact-shell {
+    display: grid;
+    grid-template-columns: 0.72fr 1.28fr 0.9fr;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .kanban-shell {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    flex: 1;
+  }
+
+  .kanban-col {
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #d7dee7;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .kanban-col h4 {
+    margin: 0;
+    font-size: 12px;
+    color: #17202d;
+  }
+</style>
+
+<h2>A1 / A2 检测工作台布局方向</h2>
+<p class="subtitle">当前都基于你的约束：仅做 A1+A2、分 Tab、主列表是异常条目汇总、右侧抽屉看员工明细与证据、支持备注 / 接受风险 / 重新检测。</p>
+<p class="design-note">建议优先看结构是否顺手：SD 先判断哪类风险最急，再点进条目处理，而不是先追求视觉细节。</p>
+
+<div class="cards">
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini-app">
+        <div class="mini-header">
+          <div class="chip-row">
+            <div class="chip">Period Apr 2026</div>
+            <div class="chip">Snapshot Draft</div>
+          </div>
+          <div class="metric-row">
+            <div class="metric"><strong>6</strong><span>Blocker</span></div>
+            <div class="metric"><strong>14</strong><span>Warning</span></div>
+          </div>
+          <div class="metric-row">
+            <div class="metric"><strong>$82k</strong><span>Impact</span></div>
+          </div>
+        </div>
+        <div class="tab-row">
+          <div class="tab active">A1 Attendance</div>
+          <div class="tab">A2 Leave</div>
+        </div>
+        <div class="list-shell">
+          <div class="list-panel">
+            <div class="group-row">
+              <div class="group active">Risk desc</div>
+              <div class="group">Blocker only</div>
+              <div class="group">Pending dep</div>
+            </div>
+            <div class="row blocker"><strong>漏打卡</strong><span>38 employees · 61 cases · 4 blocker</span></div>
+            <div class="row blocker"><strong>未审批加班影响发薪</strong><span>16 employees · 22 cases · $18.4k</span></div>
+            <div class="row warning"><strong>提报加班与系统加班不一致</strong><span>12 employees · 17 cases</span></div>
+            <div class="row info"><strong>法定节假日/休息日打卡</strong><span>8 employees · 9 cases</span></div>
+          </div>
+          <div class="drawer-panel">
+            <div class="drawer-card">
+              <h4>条目摘要</h4>
+              <p>风险等级、命中人数、预计影响金额、是否阻塞 snapshot</p>
+            </div>
+            <div class="drawer-card">
+              <h4>员工异常明细</h4>
+              <ul>
+                <li>E001 4/12 缺 clock-out</li>
+                <li>E014 4/13 night shift overlap leave</li>
+                <li>E028 4/15 OT pending approval</li>
+              </ul>
+            </div>
+            <div class="drawer-card">
+              <h4>证据与建议动作</h4>
+              <p>规则解释、阈值、审批状态、配置状态、建议动作</p>
+            </div>
+            <div class="decision-bar">
+              <div class="decision">写备注</div>
+              <div class="decision">接受风险</div>
+              <div class="decision primary">重新检测</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 A: 标准工作台</h3>
+      <p>顶部总览 + 中部规则条目列表 + 右侧详情抽屉。结构最稳，适合第一版。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini-app">
+        <div class="tab-row">
+          <div class="tab active">A1 Attendance</div>
+          <div class="tab">A2 Leave</div>
+        </div>
+        <div class="compact-shell">
+          <div class="rail">
+            <div class="metric"><strong>6</strong><span>Blocker</span></div>
+            <div class="metric"><strong>14</strong><span>Warning</span></div>
+            <div class="metric"><strong>5</strong><span>Accepted</span></div>
+            <div class="metric"><strong>3</strong><span>Pending</span></div>
+          </div>
+          <div class="list-panel">
+            <div class="group-row">
+              <div class="group active">High</div>
+              <div class="group">Medium</div>
+              <div class="group">Low</div>
+            </div>
+            <div class="row blocker"><strong>漏打卡</strong><span>风险概览 + 最近更新 + owner</span></div>
+            <div class="row blocker"><strong>打卡与请假重叠</strong><span>影响 9 名员工 · 处理 2 / 9</span></div>
+            <div class="row warning"><strong>加班超阈值</strong><span>阈值配置已命中</span></div>
+            <div class="row warning"><strong>异常请假模式</strong><span>观察窗口 30 天</span></div>
+          </div>
+          <div class="drawer-panel">
+            <div class="drawer-card">
+              <h4>处理状态</h4>
+              <p>owner、最后备注、重新检测记录</p>
+            </div>
+            <div class="drawer-card">
+              <h4>命中员工</h4>
+              <p>支持切换 employee list / evidence / notes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 B: 运营密度更高</h3>
+      <p>更像 case management，状态感更强，但第一版容易显得拥挤。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="C" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini-app">
+        <div class="tab-row">
+          <div class="tab active">A1 Attendance</div>
+          <div class="tab">A2 Leave</div>
+        </div>
+        <div class="kanban-shell">
+          <div class="kanban-col">
+            <h4>Blocker</h4>
+            <div class="row blocker"><strong>漏打卡</strong><span>61 cases</span></div>
+            <div class="row blocker"><strong>未审批加班</strong><span>22 cases</span></div>
+          </div>
+          <div class="kanban-col">
+            <h4>Need Review</h4>
+            <div class="row warning"><strong>OT 不一致</strong><span>17 cases</span></div>
+            <div class="row warning"><strong>请假负余额</strong><span>11 cases</span></div>
+          </div>
+          <div class="kanban-col">
+            <h4>Accepted / Resolved</h4>
+            <div class="row info"><strong>节假日打卡</strong><span>9 cases</span></div>
+            <div class="row info"><strong>Joiner/Leaver 按比例异常</strong><span>6 cases</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案 C: 流转看板化</h3>
+      <p>适合强调处理进度，但不适合你当前“按风险等级优先”的主排序逻辑。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top: 22px;">
+  <div class="pros">
+    <h4>我的建议</h4>
+    <ul>
+      <li>优先选方案 A 作为第一版骨架。</li>
+      <li>它最符合你已经确定的模式：Tab + 条目汇总 + 抽屉详情。</li>
+      <li>后续若状态流转变复杂，可以从 A 演进到 B。</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>主要取舍</h4>
+    <ul>
+      <li>A 最稳，但运营感没有 B 那么强。</li>
+      <li>B 更适合长期使用的 case 工作台，但第一版字段会偏多。</li>
+      <li>C 与当前使用目标不匹配，容易把“风险判断”做成“拖动流程”。</li>
+    </ul>
+  </div>
+</div>
